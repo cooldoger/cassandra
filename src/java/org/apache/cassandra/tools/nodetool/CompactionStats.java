@@ -99,7 +99,7 @@ public class CompactionStats extends NodeToolCmd
     private void addLine(List<String[]> lines, int[] columnSizes, String... columns) {
         lines.add(columns);
         for (int i = 0; i < columns.length; i++) {
-            columnSizes[i] = Math.max(columnSizes[i], columns[i].length());
+            columnSizes[i] = Math.max(columnSizes[i], columns[i] == null ? "null".length() : columns[i].length());
         }
     }
 }
