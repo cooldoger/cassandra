@@ -30,7 +30,6 @@ import org.apache.cassandra.db.compaction.CompactionManagerMBean;
 import org.apache.cassandra.db.compaction.OperationType;
 import org.apache.cassandra.io.util.FileUtils;
 import org.apache.cassandra.tools.NodeProbe;
-import org.apache.cassandra.tools.NodeTool;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
 
 @Command(name = "compactionstats", description = "Print statistics on compactions")
@@ -97,9 +96,11 @@ public class CompactionStats extends NodeToolCmd
     }
 
     private void addLine(List<String[]> lines, int[] columnSizes, String... columns) {
-        lines.add(columns);
+        String[] newColumns = new String[columns.length];
         for (int i = 0; i < columns.length; i++) {
-            columnSizes[i] = Math.max(columnSizes[i], columns[i].length());
+            columnSizes[i] = Math.max(columnSizes[i], columns[i] != null ? columns[i].length() : 1);
+            newColumns[i] = columns[i] != null ? columns[i] : "";
         }
+        lines.add(newColumns);
     }
 }
