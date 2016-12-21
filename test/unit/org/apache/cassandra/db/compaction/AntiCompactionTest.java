@@ -161,7 +161,7 @@ public class AntiCompactionTest
         }
         assertEquals(sum, cfs.metric.liveDiskSpaceUsed.getCount());
         assertEquals(rows, 1000 * (1000 * 5));//See writeFile for how this number is derived
-        assertEquals(origSize, cfs.metric.liveDiskSpaceUsed.getCount(), 16000000);
+        assertEquals(origSize, cfs.metric.liveDiskSpaceUsed.getCount(), 17000000);
     }
 
     private SSTableReader writeFile(ColumnFamilyStore cfs, int count)
