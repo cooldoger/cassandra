@@ -228,7 +228,7 @@ public class RowCacheTest
     public void testRowCachePartialLoad() throws Exception
     {
         CacheService.instance.setRowCacheCapacityInMB(1);
-        rowCacheLoad(100, 50, 0);
+        rowCacheLoad(1000, 50, 0);
         CacheService.instance.setRowCacheCapacityInMB(0);
     }
 
@@ -236,7 +236,7 @@ public class RowCacheTest
     public void testRowCacheDropSaveLoad() throws Exception
     {
         CacheService.instance.setRowCacheCapacityInMB(1);
-        rowCacheLoad(100, 50, 0);
+        rowCacheLoad(1000, 50, 0);
         CacheService.instance.rowCache.submitWrite(Integer.MAX_VALUE).get();
         Keyspace instance = Schema.instance.removeKeyspaceInstance(KEYSPACE_CACHED);
         try
@@ -257,7 +257,7 @@ public class RowCacheTest
     public void testRowCacheDisabled() throws Exception
     {
         CacheService.instance.setRowCacheCapacityInMB(1);
-        rowCacheLoad(100, 50, 0);
+        rowCacheLoad(1000, 50, 0);
         CacheService.instance.rowCache.submitWrite(Integer.MAX_VALUE).get();
         CacheService.instance.setRowCacheCapacityInMB(0);
         CacheService.instance.rowCache.size();
