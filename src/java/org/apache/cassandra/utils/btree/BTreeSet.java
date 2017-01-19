@@ -18,14 +18,24 @@
  */
 package org.apache.cassandra.utils.btree;
 
-import java.util.*;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Ordering;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.List;
+import java.util.ListIterator;
+import java.util.NavigableSet;
+import java.util.NoSuchElementException;
+import java.util.Objects;
+import java.util.SortedSet;
+import java.util.Spliterator;
+import java.util.Spliterators;
 
 import org.apache.cassandra.utils.btree.BTree.Dir;
 
 import static org.apache.cassandra.utils.btree.BTree.findIndex;
+
 
 public class BTreeSet<V> implements NavigableSet<V>, List<V>
 {
@@ -361,7 +371,7 @@ public class BTreeSet<V> implements NavigableSet<V>, List<V>
         @Override
         protected BTreeSearchIterator<V, V> slice(Dir dir)
         {
-            return new BTreeSearchIterator<>(tree, comparator, dir, lowerBound, upperBound);
+            return BTree.slice(tree, comparator, lowerBound, upperBound, dir);
         }
 
         @Override
