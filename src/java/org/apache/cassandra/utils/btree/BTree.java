@@ -201,12 +201,14 @@ public class BTree
 
     public static <V> Iterator<V> iterator(Object[] btree, Dir dir)
     {
-        return new FullBTreeSearchIterator<>(btree, null, dir);
+        return isLeaf(btree) ? new LeafBTreeSearchIterator<>(btree, null, dir)
+                             : new FullBTreeSearchIterator<>(btree, null, dir);
     }
 
     public static <V> Iterator<V> iterator(Object[] btree, int lb, int ub, Dir dir)
     {
-        return new FullBTreeSearchIterator<>(btree, null, dir, lb, ub);
+        return isLeaf(btree) ? new LeafBTreeSearchIterator<>(btree, null, dir, lb, ub)
+                             : new FullBTreeSearchIterator<>(btree, null, dir, lb, ub);
     }
 
     public static <V> Iterable<V> iterable(Object[] btree)
