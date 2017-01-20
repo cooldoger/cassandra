@@ -85,9 +85,10 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V>
         }
         else
         {
-            nextPos = -find;
+            nextPos = (forwards ? -1 : -2) - find;
             hasCurrent = false;
         }
+        hasNext = nextPos >= lowerBound && nextPos <= upperBound;
         return result;
     }
 

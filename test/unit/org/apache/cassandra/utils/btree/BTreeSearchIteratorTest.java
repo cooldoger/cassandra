@@ -25,23 +25,26 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
-import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import org.apache.cassandra.utils.IndexedSearchIterator;
 import org.apache.cassandra.utils.btree.BTree.Dir;
 import org.junit.Test;
 
 public class BTreeSearchIteratorTest
 {
+
     private static List<Integer> seq(int count)
+    {
+        return seq(count, 0, 1);
+    }
+
+    private static List<Integer> seq(int count, int base, int multi)
     {
         List<Integer> r = new ArrayList<>();
         for (int i = 0 ; i < count ; i++)
-            r.add(i + 8);
+            r.add(i * multi + base);
         return r;
     }
 
@@ -53,19 +56,145 @@ public class BTreeSearchIteratorTest
         }
     };
 
+    private static void assertIteratorExceptionBegin(final BTreeSearchIterator<Integer, Integer> iter)
+    {
+        try
+        {
+            iter.current();
+            fail("Should throw NoSuchElementException");
+        }
+        catch (NoSuchElementException ex) {
+        }
+        try
+        {
+            iter.indexOfCurrent();
+            fail("Should throw NoSuchElementException");
+        }
+        catch (NoSuchElementException ex) {
+        }
+    }
+
+    private static void assertIteratorExceptionEnd(final BTreeSearchIterator<Integer, Integer> iter)
+    {
+        assertFalse(iter.hasNext());
+        try
+        {
+            iter.next();
+            fail("Should throw NoSuchElementException");
+        }
+        catch (NoSuchElementException ex) {
+        }
+    }
+
+    private static void assertBTreeSearchIteratorEquals(final BTreeSearchIterator<Integer, Integer> iter1,
+                                                        final BTreeSearchIterator<Integer, Integer> iter2)
+    {
+        assertIteratorExceptionBegin(iter1);
+        assertIteratorExceptionBegin(iter2);
+        while (iter1.hasNext()) {
+            assertTrue(iter2.hasNext());
+            assertEquals(iter1.next(), iter2.next());
+            assertEquals(iter1.current(), iter2.current());
+            assertEquals(iter1.indexOfCurrent(), iter2.indexOfCurrent());
+        }
+        assertIteratorExceptionEnd(iter1);
+        assertIteratorExceptionEnd(iter2);
+    }
+
+    private static void assertBTreeSearchIteratorEquals(final BTreeSearchIterator<Integer, Integer> iter1,
+                                                        final BTreeSearchIterator<Integer, Integer> iter2,
+                                                        int... targets) {
+        assertIteratorExceptionBegin(iter1);
+        assertIteratorExceptionBegin(iter2);
+        for (int i : targets) {
+            Integer val1 = iter1.next(i);
+            Integer val2 = iter2.next(i);
+            assertEquals(val1, val2);
+            if (val1 != null)
+            {
+                assertEquals(iter1.current(), iter2.current());
+                assertEquals(iter1.indexOfCurrent(), iter2.indexOfCurrent());
+            }
+        }
+
+        while (iter1.hasNext()) {
+            assertTrue(iter2.hasNext());
+            assertEquals(iter1.next(), iter2.next());
+            assertEquals(iter1.current(), iter2.current());
+            assertEquals(iter1.indexOfCurrent(), iter2.indexOfCurrent());
+        }
+        assertIteratorExceptionEnd(iter1);
+        assertIteratorExceptionEnd(iter2);
+    }
+
     @Test
-    public void testFirstHaha()
+    public void testTreeIteratorNormal()
     {
         Object[] btree = BTree.build(seq(21), UpdateFunction.noOp());
-        BTreeSearchIterator iter = new FullBTreeSearchIterator<>(btree, CMP, Dir.DESC);
-        assertTrue(iter.hasNext());
-        Integer key = 16;
-        Integer val = (Integer) iter.next(key);
-        BTreeSearchIterator iter2 = new LeafBTreeSearchIterator<>(btree, CMP, Dir.DESC);
-        assertTrue(iter.hasNext());
-        Integer val3 = (Integer) iter2.next(key);
-        assertEquals(iter.indexOfCurrent(), iter2.indexOfCurrent());
-        assertEquals(val, val3);
-        assertEquals(1, 1);
+        BTreeSearchIterator fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, -8);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 100);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3, 4);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, -8, 3, 100);
+
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 100);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, -8);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 4, 3);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 100, 3, -8);
+    }
+
+    @Test
+    public void testTreeIteratorEmpty()
+    {
+        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(BTree.empty(), CMP, Dir.ASC);
+        assertFalse(leafIter.hasNext());
+        leafIter = new LeafBTreeSearchIterator(BTree.empty(), CMP, Dir.DESC);
+        assertFalse(leafIter.hasNext());
+    }
+
+    @Test
+    public void testTreeIteratorNotFound()
+    {
+        Object[] btree = BTree.build(seq(31, 0, 3), UpdateFunction.noOp());
+        BTreeSearchIterator fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1, 3 * 7);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1, 3 * 7 + 1);
+
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1, 3 * 2);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3 * 5 + 1, 3 * 2 + 1);
     }
 }
