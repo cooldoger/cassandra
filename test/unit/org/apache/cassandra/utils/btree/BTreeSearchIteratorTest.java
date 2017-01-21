@@ -164,6 +164,33 @@ public class BTreeSearchIteratorTest
     }
 
     @Test
+    public void testTreeIteratorOneElem()
+    {
+        Object[] btree = BTree.build(seq(1), UpdateFunction.noOp());
+        BTreeSearchIterator fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 0);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 0);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 3);
+    }
+
+    @Test
     public void testTreeIteratorEmpty()
     {
         BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(BTree.empty(), CMP, Dir.ASC);
