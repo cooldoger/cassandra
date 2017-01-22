@@ -27,6 +27,7 @@ import java.util.Random;
 import org.apache.cassandra.utils.btree.BTreeSearchIterator;
 import org.apache.cassandra.utils.btree.BTree;
 import org.apache.cassandra.utils.btree.BTree.Dir;
+import org.apache.cassandra.utils.btree.FullBTreeSearchIterator;
 import org.apache.cassandra.utils.btree.UpdateFunction;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -111,6 +112,16 @@ public class BTreeSearchIteratorBench
     public void iteratorBigTreeTest()
     {
         BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeBig, CMP, Dir.ASC);
+        while(iter.hasNext())
+        {
+            sum += iter.next();
+        }
+    }
+
+    @Benchmark
+    public void iteratorBigFullTreeTest()
+    {
+        FullBTreeSearchIterator<Integer, Integer> iter = new FullBTreeSearchIterator<>(btreeBig, CMP, Dir.ASC);
         while(iter.hasNext())
         {
             sum += iter.next();
