@@ -28,6 +28,8 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.NoSuchElementException;
 
+import com.google.common.collect.Iterables;
+
 import org.apache.cassandra.utils.btree.BTree.Dir;
 import org.junit.Test;
 
@@ -129,9 +131,9 @@ public class BTreeSearchIteratorTest
     @Test
     public void testTreeIteratorNormal()
     {
-        Object[] btree = BTree.build(seq(21), UpdateFunction.noOp());
-        BTreeSearchIterator fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
-        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        Object[] btree = BTree.build(seq(30), UpdateFunction.noOp());
+        BTreeSearchIterator fullIter = new FullBTreeSearchIterator<>(btree, CMP, Dir.ASC);
+        BTreeSearchIterator leafIter = new LeafBTreeSearchIterator<>(btree, CMP, Dir.ASC);
         assertBTreeSearchIteratorEquals(fullIter, leafIter);
         fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
         leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
@@ -144,7 +146,13 @@ public class BTreeSearchIteratorTest
         assertBTreeSearchIteratorEquals(fullIter, leafIter, 3, 4);
         fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
         leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 4, 3);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
         assertBTreeSearchIteratorEquals(fullIter, leafIter, -8, 3, 100);
+        fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.ASC);
+        leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.ASC);
+        assertBTreeSearchIteratorEquals(fullIter, leafIter, 0, 29, 30, 0);
 
         fullIter = new FullBTreeSearchIterator(btree, CMP, Dir.DESC);
         leafIter = new LeafBTreeSearchIterator(btree, CMP, Dir.DESC);

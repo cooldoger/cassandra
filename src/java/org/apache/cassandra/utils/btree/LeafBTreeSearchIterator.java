@@ -22,7 +22,6 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.NoSuchElementException;
 
-
 import static org.apache.cassandra.utils.btree.BTree.size;
 
 public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V>
@@ -55,6 +54,14 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V>
         return forwards ? idx - lowerBound : upperBound - idx;
     }
 
+    private int searchNext(K key)
+    {
+        int lb = forwards ? nextPos : lowerBound; // inclusive
+        int ub = forwards ? upperBound : nextPos; // inclusive
+
+        return Arrays.binarySearch(keys, lb, ub + 1, key, comparator);
+    }
+
     public V next()
     {
         if (!hasNext)
@@ -76,7 +83,8 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V>
         if (!hasNext)
             return null;
         V result = null;
-        int find = Arrays.binarySearch(keys, lowerBound, upperBound + 1, key, comparator);
+
+        int find = searchNext(key);
         if (find >= 0)
         {
             hasCurrent = true;
