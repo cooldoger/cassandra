@@ -56,10 +56,13 @@ public class LeafBTreeSearchIterator<K, V> implements BTreeSearchIterator<K, V>
 
     private int searchNext(K key)
     {
+        int bound = 1;
         int lb = forwards ? nextPos : lowerBound; // inclusive
         int ub = forwards ? upperBound : nextPos; // inclusive
+        while (lb + bound < ub && comparator.compare(keys[lb + bound], key) < 0)
+            bound *= 2;
 
-        return Arrays.binarySearch(keys, lb, ub + 1, key, comparator);
+        return Arrays.binarySearch(keys, lb + (bound/2), Math.min(lb + bound + 1, ub + 1), key, comparator);
     }
 
     public V next()
