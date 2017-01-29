@@ -57,6 +57,11 @@ public class BTree
 
     // The maximum fan factor used for B-Trees
     static final int FAN_SHIFT;
+    static final int MAX_DEPTH = 20; //TODO could be caculated by
+    static final int[] TREE_SIZE = new int[MAX_DEPTH];
+
+    // NB we encode Path indexes as Bytes, so this needs to be less than Byte.MAX_VALUE / 2
+    static final int FAN_FACTOR;
     static
     {
         int fanfactor = 32;
@@ -66,9 +71,14 @@ public class BTree
         while (1 << shift < fanfactor)
             shift += 1;
         FAN_SHIFT = shift;
+        FAN_FACTOR = 1 << FAN_SHIFT;
+
+        for (int i = 1; i < MAX_DEPTH; i++)
+        {
+            TREE_SIZE[i] = TREE_SIZE[i-1] * (FAN_FACTOR + 1) + FAN_FACTOR;
+        }
     }
-    // NB we encode Path indexes as Bytes, so this needs to be less than Byte.MAX_VALUE / 2
-    static final int FAN_FACTOR = 1 << FAN_SHIFT;
+
 
     static final int MINIMAL_NODE_SIZE = FAN_FACTOR >> 1;
 
@@ -102,11 +112,6 @@ public class BTree
         return buildInternal(source, source.size(), updateF);
     }
 
-    public static <C, K extends C, V extends C> Object[] build(Iterable<K> source, UpdateFunction<K, V> updateF)
-    {
-        return buildInternal(source, -1, updateF);
-    }
-
     /**
      * Creates a BTree containing all of the objects in the provided collection
      *
@@ -121,32 +126,79 @@ public class BTree
         return buildInternal(source, size, updateF);
     }
 
-    /**
-     * As build(), except:
-     * @param size    < 0 if size is unknown
-     */
-    private static <C, K extends C, V extends C> Object[] buildInternal(Iterable<K> source, int size, UpdateFunction<K, V> updateF)
+    private static <C, K extends C, V extends C> Object[] buildLeaf(Iterator<K> it, int size, UpdateFunction<K, V> updateF)
     {
-        if ((size >= 0) & (size < FAN_FACTOR))
+        V[] values = (V[]) new Object[size | 1];
+
+        for (int i = 0; i < size; i++)
         {
-            if (size == 0)
-                return EMPTY_LEAF;
-            // pad to odd length to match contract that all leaf nodes are odd
-            V[] values = (V[]) new Object[size | 1];
-            {
-                int i = 0;
-                for (K k : source)
-                    values[i++] = updateF.apply(k);
-            }
-            if (updateF != UpdateFunction.noOp())
-                updateF.allocated(ObjectSizes.sizeOfArray(values));
-            return values;
+            K k = it.next();
+            values[i] = updateF.apply(k);
+        }
+        if (updateF != UpdateFunction.noOp())
+            updateF.allocated(ObjectSizes.sizeOfArray(values));
+        return values;
+    }
+
+    private static <C, K extends C, V extends C> Object[] buildInternal(Iterator<K> it, int size, int level, UpdateFunction<K, V> updateF)
+    {
+        if (size == 0)
+            return null;
+
+        if (level == 1)
+            return buildLeaf(it, size, updateF);
+
+        int childSize = TREE_SIZE[level - 1];
+
+        int childrenNum = 1;
+        int left = size - childSize;
+        while (left > 0)
+        {
+            left -= childSize + 1;
+            childrenNum++;
         }
 
-        TreeBuilder builder = TreeBuilder.newInstance();
-        Object[] btree = builder.build(source, updateF, size);
+        V[] values = (V[]) new Object[childrenNum * 2];
+        updateF.allocated(ObjectSizes.sizeOfArray(values));
 
-        return btree;
+        int[] indexOffsets = new int[childrenNum];
+        left = size;
+        int childPos = childrenNum - 1;
+        for (int i = 0; i < childrenNum - 2; i++)
+        {
+            left -= childSize;
+            indexOffsets[i] = size - left;
+            left--;
+            values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
+
+            K k = it.next();
+            values[i] = updateF.apply(k);
+        }
+
+        // Split the left values to the last 2 nodes
+        values[childPos + childrenNum - 2] = (V) buildInternal(it, left / 2, level - 1, updateF);
+        values[childrenNum - 2] = updateF.apply(it.next());
+        values[childPos + childrenNum - 1] = (V) buildInternal(it, (left - 1) / 2, level - 1, updateF);
+        indexOffsets[childrenNum - 2] = size - ((left + 1) / 2);
+        indexOffsets[childrenNum - 1] = size;
+
+        values[childPos + childrenNum] = (V) indexOffsets;
+
+        return values;
+    }
+
+    private static <C, K extends C, V extends C> Object[] buildInternal(Iterable<K> source, int size, UpdateFunction<K, V> updateF)
+    {
+        assert size >= 0;
+        if (size == 0)
+            return EMPTY_LEAF;
+
+        int level = 1;
+        while (size > TREE_SIZE[level])
+            level++;
+        Iterator<K> it = source.iterator();
+        return buildInternal(it, size, level, updateF);
+        // assert !it.hasNext()
     }
 
     public static <C, K extends C, V extends C> Object[] update(Object[] btree,
@@ -670,11 +722,12 @@ public class BTree
         // take the already transformed bits from the head of the partial result
         Iterable<V> head = iterable(result, 0, wrapped.index - 1, Dir.ASC);
         // and concatenate with remainder of original tree, with transformation applied
+
         Iterable<V> remainder = iterable(btree, wrapped.index + 1, size(btree) - 1, Dir.ASC);
         remainder = filter(transform(remainder, function), (x) -> x != null);
         Iterable<V> build = concat(head, remainder);
 
-        return buildInternal(build, -1, UpdateFunction.<V>noOp());
+        return buildInternal(build, size(btree), UpdateFunction.<V>noOp());
     }
 
     private static <V> Object[] transformAndFilter(Object[] btree, FiltrationTracker<V> function)
