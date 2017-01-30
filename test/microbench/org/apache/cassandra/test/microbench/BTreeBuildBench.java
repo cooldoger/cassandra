@@ -83,7 +83,7 @@ public class BTreeBuildBench
     private int treeBuilder(List<Integer> data)
     {
         BTree.Builder<Integer> builder = BTree.builder(Comparator.naturalOrder());
-        Object[] btree = builder.addAll(dataLeaf).build();
+        Object[] btree = builder.addAll(data).build();
         return BTree.size(btree);
 
     }
