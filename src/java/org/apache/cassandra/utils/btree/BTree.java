@@ -146,37 +146,34 @@ public class BTree
     private static <C, K extends C, V extends C> Object[] buildInternal(Iterator<K> it, int size, int level, UpdateFunction<K, V> updateF)
     {
         assert size > 0;
+        assert level > 0;
         if (level == 1)
             return buildLeaf(it, size, updateF);
 
         // build branch node
-        int childrenNum = 1;
         int childSize = TREE_SIZE[level - 1];
-
-        int left = size - childSize;
-        while (left > 0)
-        {
-            left -= childSize + 1;
-            childrenNum++;
-        }
+        int childrenNum = size / (childSize + 1) + 1;
 
         V[] values = (V[]) new Object[childrenNum * 2];
-        updateF.allocated(ObjectSizes.sizeOfArray(values));
+        if (updateF != UpdateFunction.noOp())
+            updateF.allocated(ObjectSizes.sizeOfArray(values));
 
         int[] indexOffsets = new int[childrenNum];
-        left = size;
+        int left = size;
         int childPos = childrenNum - 1;
 
         // Build children nodes with full BTree size except the last 2 nodes
+        // TODO: might be better to evenly distrube the values to each child to make the tree more balanced
         for (int i = 0; i < childrenNum - 2; i++)
         {
+            // Build the tree with inorder traversal
+            values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
             left -= childSize;
             indexOffsets[i] = size - left;
-            left--;
-            values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
 
             K k = it.next();
             values[i] = updateF.apply(k);
+            left--;
         }
 
         // Split the left values to the last 2 nodes
