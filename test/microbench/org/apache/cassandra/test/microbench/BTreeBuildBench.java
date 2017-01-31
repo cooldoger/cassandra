@@ -47,6 +47,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class BTreeBuildBench
 {
+    private List<Integer> dataSingle;
     private List<Integer> dataLeaf;
     private List<Integer> data1K;
     private List<Integer> data5K;
@@ -85,16 +86,23 @@ public class BTreeBuildBench
         BTree.Builder<Integer> builder = BTree.builder(Comparator.naturalOrder());
         Object[] btree = builder.addAll(data).build();
         return BTree.size(btree);
-
     }
 
     @Setup(Level.Trial)
     public void setup() throws Throwable
     {
+        dataSingle = seq(1);
         dataLeaf = seq(32);
         data1K = seq(1000);
         data5K = seq(5000);
-        data1M = seq(10000);
+        data1M = seq(1000*1000);
+    }
+
+    @Benchmark
+    public void buildSingleValueTreeTest()
+    {
+        int size = buildTree(dataSingle);
+        assert size == 1;
     }
 
     @Benchmark
@@ -122,7 +130,14 @@ public class BTreeBuildBench
     public void build1MValuesTreeTest()
     {
         int size = buildTree(data1M);
-        assert size == 10000;
+        assert size == 1000*1000;
+    }
+
+    @Benchmark
+    public void buildSingleValueTreeBuilderTest()
+    {
+        int size = treeBuilder(dataSingle);
+        assert size == 1;
     }
 
     @Benchmark
@@ -150,7 +165,22 @@ public class BTreeBuildBench
     public void build1MValuesTreeBuilderTest()
     {
         int size = treeBuilder(data1M);
-        assert size == 10000;
+        assert size == 1000*1000;
     }
 
+    @Benchmark
+    public void transformAndFilter1KTest()
+    {
+        Object[] b1 = BTree.build(data1K, UpdateFunction.noOp());
+        Object[] b2 = BTree.transformAndFilter(b1, (x) -> (Integer) x % 2 == 1 ? x : null);
+        assert BTree.size(b1) / 2 == BTree.size(b2);
+    }
+
+    @Benchmark
+    public void transformAndFilter1MTest()
+    {
+        Object[] b1 = BTree.build(data1M, UpdateFunction.noOp());
+        Object[] b2 = BTree.transformAndFilter(b1, (x) -> (Integer) x % 2 == 1 ? x : null);
+        assert BTree.size(b1) / 2 == BTree.size(b2);
+    }
 }
