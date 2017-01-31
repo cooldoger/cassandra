@@ -34,6 +34,7 @@ import static com.google.common.collect.Iterables.filter;
 import static com.google.common.collect.Iterables.transform;
 import static java.lang.Math.max;
 import static java.lang.Math.min;
+import static java.util.Comparator.naturalOrder;
 
 public class BTree
 {
@@ -727,7 +728,11 @@ public class BTree
         remainder = filter(transform(remainder, function), (x) -> x != null);
         Iterable<V> build = concat(head, remainder);
 
-        return buildInternal(build, size(btree), UpdateFunction.<V>noOp());
+        Builder<V> builder = builder((Comparator<? super V>) naturalOrder());
+        builder.auto(false);
+        for (V v : build)
+            builder.add(v);
+        return builder.build();
     }
 
     private static <V> Object[] transformAndFilter(Object[] btree, FiltrationTracker<V> function)
