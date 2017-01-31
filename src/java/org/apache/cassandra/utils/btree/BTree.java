@@ -58,7 +58,9 @@ public class BTree
 
     // The maximum fan factor used for B-Trees
     static final int FAN_SHIFT;
-    static final int MAX_DEPTH = 20; //TODO could be caculated by
+    // The maximum tree depth
+    static final int MAX_DEPTH = 32; // TODO could be reduced by caculating with FAN_FACTOR
+    // The maximun tree size on each level
     static final int[] TREE_SIZE = new int[MAX_DEPTH];
 
     // NB we encode Path indexes as Bytes, so this needs to be less than Byte.MAX_VALUE / 2
@@ -76,7 +78,7 @@ public class BTree
 
         for (int i = 1; i < MAX_DEPTH; i++)
         {
-            TREE_SIZE[i] = TREE_SIZE[i-1] * (FAN_FACTOR + 1) + FAN_FACTOR;
+            TREE_SIZE[i] = TREE_SIZE[i - 1] * (FAN_FACTOR + 1) + FAN_FACTOR;
         }
     }
 
@@ -143,15 +145,14 @@ public class BTree
 
     private static <C, K extends C, V extends C> Object[] buildInternal(Iterator<K> it, int size, int level, UpdateFunction<K, V> updateF)
     {
-        if (size == 0)
-            return null;
-
+        assert size > 0;
         if (level == 1)
             return buildLeaf(it, size, updateF);
 
+        // build branch node
+        int childrenNum = 1;
         int childSize = TREE_SIZE[level - 1];
 
-        int childrenNum = 1;
         int left = size - childSize;
         while (left > 0)
         {
@@ -165,6 +166,8 @@ public class BTree
         int[] indexOffsets = new int[childrenNum];
         left = size;
         int childPos = childrenNum - 1;
+
+        // Build children nodes with full BTree size except the last 2 nodes
         for (int i = 0; i < childrenNum - 2; i++)
         {
             left -= childSize;
@@ -180,6 +183,7 @@ public class BTree
         values[childPos + childrenNum - 2] = (V) buildInternal(it, left / 2, level - 1, updateF);
         values[childrenNum - 2] = updateF.apply(it.next());
         values[childPos + childrenNum - 1] = (V) buildInternal(it, (left - 1) / 2, level - 1, updateF);
+
         indexOffsets[childrenNum - 2] = size - ((left + 1) / 2);
         indexOffsets[childrenNum - 1] = size;
 
@@ -194,12 +198,12 @@ public class BTree
         if (size == 0)
             return EMPTY_LEAF;
 
+        // find out the height of the tree
         int level = 1;
         while (size > TREE_SIZE[level])
             level++;
         Iterator<K> it = source.iterator();
         return buildInternal(it, size, level, updateF);
-        // assert !it.hasNext()
     }
 
     public static <C, K extends C, V extends C> Object[] update(Object[] btree,
