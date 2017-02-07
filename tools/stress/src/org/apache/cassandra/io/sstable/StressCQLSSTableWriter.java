@@ -609,16 +609,17 @@ public class StressCQLSSTableWriter implements Closeable
             KeyspaceMetadata ksm = Schema.instance.getKSMetaData(keyspace);
 
             CFMetaData cfMetaData = ksm.tables.getNullable(schemaStatement.columnFamily());
-            assert cfMetaData == null;
+            if (cfMetaData != null)
+                return Schema.instance.getColumnFamilyStoreInstance(cfMetaData.cfId);
 
             CreateTableStatement statement = (CreateTableStatement) schemaStatement.prepare(ksm.types).statement;
             statement.validate(ClientState.forInternalCalls());
 
             //Build metatdata with a portable cfId
             cfMetaData = statement.metadataBuilder()
-                                  .withId(CFMetaData.generateLegacyCfId(keyspace, statement.columnFamily()))
-                                  .build()
-                                  .params(statement.params());
+                              .withId(CFMetaData.generateLegacyCfId(keyspace, statement.columnFamily()))
+                              .build()
+                              .params(statement.params());
 
             Keyspace.setInitialized();
             Directories directories = new Directories(cfMetaData, directoryList.stream().map(Directories.DataDirectory::new).collect(Collectors.toList()));
