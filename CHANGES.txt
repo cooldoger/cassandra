@@ -1,4 +1,5 @@
 3.11.0
+ * Fix compaction-stress by using daemonInitialization (CASSANDRA-13188)
  * Fix testLimitSSTables flake caused by concurrent flush (CASSANDRA-12820)
  * cdc column addition strikes again (CASSANDRA-13382)
  * Fix static column indexes (CASSANDRA-13277)
@@ -81,7 +82,6 @@ Merged from 2.1:
  * Use portable stderr for java error in startup (CASSANDRA-13211)
  * Fix Thread Leak in OutboundTcpConnection (CASSANDRA-13204)
  * Coalescing strategy can enter infinite loop (CASSANDRA-13159)
-
 
 3.10
  * Fix secondary index queries regression (CASSANDRA-13013)
