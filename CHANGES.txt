@@ -52,6 +52,7 @@
 
 
 3.11.0
+ * Initial memtable for both Deamon and tool to fix compaction-stress (CASSANDRA-13188)
  * Fix testLimitSSTables flake caused by concurrent flush (CASSANDRA-12820)
  * cdc column addition strikes again (CASSANDRA-13382)
  * Fix static column indexes (CASSANDRA-13277)
@@ -134,7 +135,6 @@ Merged from 2.1:
  * Fix Thread Leak in OutboundTcpConnection (CASSANDRA-13204)
  * Upgrade netty version to fix memory leak with client encryption (CASSANDRA-13114)
  * Coalescing strategy can enter infinite loop (CASSANDRA-13159)
-
 
 3.10
  * Fix secondary index queries regression (CASSANDRA-13013)
