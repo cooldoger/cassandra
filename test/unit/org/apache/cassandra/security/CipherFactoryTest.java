@@ -21,6 +21,7 @@
 package org.apache.cassandra.security;
 
 import java.io.IOException;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 
 import javax.crypto.BadPaddingException;
@@ -33,6 +34,8 @@ import org.junit.Before;
 import org.junit.Test;
 
 import org.apache.cassandra.config.TransparentDataEncryptionOptions;
+
+import static org.junit.Assert.fail;
 
 public class CipherFactoryTest
 {
@@ -47,7 +50,15 @@ public class CipherFactoryTest
     @Before
     public void setup()
     {
-        secureRandom = new SecureRandom(new byte[] {0,1,2,3,4,5,6,7,8,9} );
+        try
+        {
+            secureRandom = SecureRandom.getInstance("SHA1PRNG");
+            assert(secureRandom.getProvider() != null);
+        }
+        catch (NoSuchAlgorithmException e)
+        {
+            fail("NoSuchAlgorithmException: SHA1PRNG not found.");
+        }
         encryptionOptions = EncryptionContextGenerator.createEncryptionOptions();
         cipherFactory = new CipherFactory(encryptionOptions);
     }
