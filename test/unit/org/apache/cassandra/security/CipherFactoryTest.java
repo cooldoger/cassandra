@@ -47,7 +47,7 @@ public class CipherFactoryTest
     @Before
     public void setup()
     {
-        secureRandom = new SecureRandom(new byte[] {0,1,2,3,4,5,6,7,8,9} );
+        secureRandom = new SecureRandom();
         encryptionOptions = EncryptionContextGenerator.createEncryptionOptions();
         cipherFactory = new CipherFactory(encryptionOptions);
     }
