@@ -337,13 +337,21 @@ public class ClientState
         if (isInternal)
             return;
         validateLogin();
-        preventSystemKSSchemaModification(keyspace, resource, perm);
+        // Paxos table compaction strategy can be modified
+        if (!isSystemPaxosTable(resource))
+            preventSystemKSSchemaModification(keyspace, resource, perm);
         if ((perm == Permission.SELECT) && READABLE_SYSTEM_RESOURCES.contains(resource))
             return;
         if (PROTECTED_AUTH_RESOURCES.contains(resource))
             if ((perm == Permission.CREATE) || (perm == Permission.ALTER) || (perm == Permission.DROP))
                 throw new UnauthorizedException(String.format("%s schema is protected", resource));
         ensureHasPermission(perm, resource);
+    }
+
+    private boolean isSystemPaxosTable(DataResource resource)
+    {
+        return (resource.getKeyspace().equals(SchemaConstants.SYSTEM_KEYSPACE_NAME) &&
+            resource.getTable().equals(SystemKeyspace.PAXOS));
     }
 
     public void ensureHasPermission(Permission perm, IResource resource) throws UnauthorizedException
