@@ -599,6 +599,8 @@ public class StressProfile implements Serializable
                     String query = sb.toString();
 
                     insertStatement = client.prepare(query);
+                    System.out.println("Insert Statement:");
+                    System.out.println("  " + query);
                 }
             }
         }
