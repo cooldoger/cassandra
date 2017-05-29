@@ -97,6 +97,12 @@ public final class SchemaKeyspace
     public static final ImmutableList<String> ALL =
         ImmutableList.of(COLUMNS, DROPPED_COLUMNS, TRIGGERS, TYPES, FUNCTIONS, AGGREGATES, INDEXES, TABLES, VIEWS, KEYSPACES);
 
+    /**
+     * Older table list for digest calculation
+     */
+    private static final ImmutableList<String> DIGEST_ALL =
+        ImmutableList.of(KEYSPACES, TABLES, COLUMNS, DROPPED_COLUMNS, TRIGGERS, VIEWS, TYPES, FUNCTIONS, AGGREGATES, INDEXES);
+
     private static final CFMetaData Keyspaces =
         compile(KEYSPACES,
                 "keyspace definitions",
@@ -308,7 +314,7 @@ public final class SchemaKeyspace
             throw new RuntimeException(e);
         }
 
-        for (String table : ALL)
+        for (String table : DIGEST_ALL)
         {
             // Due to CASSANDRA-11050 we want to exclude DROPPED_COLUMNS for schema digest computation. We can and
             // should remove that in the next major release (so C* 4.0).
