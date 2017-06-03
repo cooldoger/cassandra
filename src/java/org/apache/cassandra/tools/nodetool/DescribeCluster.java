@@ -25,6 +25,7 @@ import java.util.Map;
 
 import org.apache.cassandra.tools.NodeProbe;
 import org.apache.cassandra.tools.NodeTool.NodeToolCmd;
+import org.apache.cassandra.locator.DynamicEndpointSnitch;
 
 @Command(name = "describecluster", description = "Print the name, snitch, partitioner and schema version of a cluster")
 public class DescribeCluster extends NodeToolCmd
@@ -35,7 +36,10 @@ public class DescribeCluster extends NodeToolCmd
         // display cluster name, snitch and partitioner
         System.out.println("Cluster Information:");
         System.out.println("\tName: " + probe.getClusterName());
-        System.out.println("\tSnitch: " + probe.getEndpointSnitchInfoProxy().getSnitchName());
+        String snitchName = probe.getEndpointSnitchInfoProxy().getSnitchName();
+        System.out.println("\tSnitch: " + snitchName);
+        if (snitchName.equals(DynamicEndpointSnitch.class.getName()))
+            System.out.println("\t  Sub-Snitch: " + probe.getDynamicEndpointSnitchProxy().getSubsnitchClassName());
         System.out.println("\tPartitioner: " + probe.getPartitioner());
 
         // display schema version for each node

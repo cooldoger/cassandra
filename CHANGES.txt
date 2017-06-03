@@ -1,4 +1,5 @@
 4.0
+ * Display sub-snitch of DynamicEndpointSnitch in describecluster (CASSANDRA-13572)
  * Allow selecting Map values and Set elements (CASSANDRA-7396)
  * Fast and garbage-free Streaming Histogram (CASSANDRA-13444)
  * Update repairTime for keyspaces on completion (CASSANDRA-13539)
