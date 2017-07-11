@@ -1740,11 +1740,11 @@
       <os family="windows" />
     </condition>
     <!-- support for Linux and Solaris (package SUNWgnu-coreutils is required) -->
-    <exec executable="nproc" outputproperty="cores.count" os="Linux,SunOS,Solaris">
+    <exec executable="nproc" outputproperty="cores.count" os="Linux,SunOS,Solaris" failifexecutionfails="false">
       <arg value="--all"/>
     </exec>
     <!-- support for Mac OS X -->
-    <exec executable="sysctl" outputproperty="cores.count" os="Mac,Mac OS X,Darwin">
+    <exec executable="sysctl" outputproperty="cores.count" os="Mac,Mac OS X,Darwin" failifexecutionfails="false">
       <arg value="-n"/>
       <arg value="hw.ncpu"/>
     </exec>
@@ -1752,17 +1752,16 @@
   </target>
 
   <target name="get-mem">
-    <!-- Hardcode to 0 for Windows -->
-    <condition property="mem.size" value="0">
+    <condition property="mem.size" value="unknown">
       <os family="windows" />
     </condition>
     <!-- support for Linux and Solaris (package SUNWgnu-coreutils is required) -->
-    <exec executable="bash" outputproperty="mem.size" os="Linux,SunOS,Solaris">
+    <exec executable="bash" outputproperty="mem.size" os="Linux,SunOS,Solaris" failifexecutionfails="false">
       <arg value="-c"/>
       <arg value="free -b | grep Mem: | awk '{print $2}'"/>
     </exec>
     <!-- support for Mac OS X -->
-    <exec executable="sysctl" outputproperty="mem.size" os="Mac,Mac OS X,Darwin">
+    <exec executable="sysctl" outputproperty="mem.size" os="Mac,Mac OS X,Darwin" failifexecutionfails="false">
       <arg value="-n"/>
       <arg value="hw.memsize"/>
     </exec>
