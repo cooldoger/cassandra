@@ -241,7 +241,7 @@ class HintsReader implements AutoCloseable, Iterable<HintsReader.Page>
                             descriptor.fileName());
                 input.skipBytes(Ints.checkedCast(size - input.bytesPastLimit()));
 
-                return null;
+                hint = null;
             }
 
             if (input.checkCrc())
