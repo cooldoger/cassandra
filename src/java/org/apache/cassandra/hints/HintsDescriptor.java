@@ -120,7 +120,7 @@ final class HintsDescriptor
         switch (hintsVersion)
         {
             case VERSION_30:
-                return MessagingService.VERSION_30;
+                return MessagingService.VERSION_3014;
             default:
                 throw new AssertionError();
         }
