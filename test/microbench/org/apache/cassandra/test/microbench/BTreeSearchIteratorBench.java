@@ -109,9 +109,11 @@ public class BTreeSearchIteratorBench
     public void searchNotFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        String val = iter.next(testUUID);
-        if (val != null)
-            System.out.println("WOOOOOOO uuid collision ^_^!");
+        Random rand = new Random(2);
+        String str = data.get(rand.nextInt(btreeSize));
+        String target = str.substring(0, str.length() - 1) + "!"; // replace the last character to !, so it cannot be found
+        String val = iter.next(target);
+        assert(val == null);
     }
 
     @Benchmark
