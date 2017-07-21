@@ -60,6 +60,7 @@ public class BTreeSearchIteratorBench
 
     private Object[] btree;
     private ArrayList<String> data;
+    private String testUUID;
 
     private static ArrayList<String> seq(int count, int minCellSize)
     {
@@ -92,6 +93,7 @@ public class BTreeSearchIteratorBench
     {
         data = seq(btreeSize, cellSize);
         btree = BTree.build(data, UpdateFunction.noOp());
+        testUUID = UUID.randomUUID().toString();
     }
 
     @Benchmark
@@ -107,8 +109,7 @@ public class BTreeSearchIteratorBench
     public void searchNotFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        String uuid = UUID.randomUUID().toString();
-        String val = iter.next(uuid);
+        String val = iter.next(testUUID);
         if (val != null)
             System.out.println("WOOOOOOO uuid collision ^_^!");
     }
@@ -117,13 +118,9 @@ public class BTreeSearchIteratorBench
     public void iteratorTree()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        String uuid = UUID.randomUUID().toString();
         while(iter.hasNext())
         {
-            if (uuid.equals(iter.next()))
-            {
-                System.out.println("WOOOOOOO uuid collision ^_^!");
-            }
+            String val = iter.next();
         }
     }
 }
