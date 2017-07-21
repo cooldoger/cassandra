@@ -52,7 +52,7 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class BTreeSearchIteratorBench
 {
-    @Param({"1", "16", "32", "100", "1000", "10000", "100000", "1000000"})
+    @Param({"1", "16", "32", "100", "1000", "10000", "100000"})
     private int btreeSize;
 
     @Param({"36", "100", "1000", "10000"})
