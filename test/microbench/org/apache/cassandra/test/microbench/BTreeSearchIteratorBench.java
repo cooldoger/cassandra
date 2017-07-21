@@ -103,7 +103,8 @@ public class BTreeSearchIteratorBench
         Random rand = new Random(2);
         Integer val = iter.next(rand.nextInt(1000) * 2 + 1);
         assert(val == null);
-        if (val != null) {
+        if (val != null)
+        {
             throw new RuntimeException("Should not find any result:" + val.toString());
         }
     }
@@ -145,7 +146,8 @@ public class BTreeSearchIteratorBench
         Random rand = new Random(2);
         Integer val = iter.next(rand.nextInt(32) * 2 + 1);
         assert(val == null);
-        if (val != null) {
+        if (val != null)
+        {
             throw new RuntimeException("Should not find any result: " + val.toString());
         }
     }
@@ -175,7 +177,8 @@ public class BTreeSearchIteratorBench
         BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeOneElem, CMP, Dir.ASC);
         Integer val = iter.next(1);
         assert(val == null);
-        if (val != null) {
+        if (val != null)
+        {
             throw new RuntimeException("Should not find any result: " + val.toString());
         }
     }

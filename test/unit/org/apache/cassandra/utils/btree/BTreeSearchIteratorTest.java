@@ -64,14 +64,16 @@ public class BTreeSearchIteratorTest
             iter.current();
             fail("Should throw NoSuchElementException");
         }
-        catch (NoSuchElementException ex) {
+        catch (NoSuchElementException ex)
+        {
         }
         try
         {
             iter.indexOfCurrent();
             fail("Should throw NoSuchElementException");
         }
-        catch (NoSuchElementException ex) {
+        catch (NoSuchElementException ex)
+        {
         }
     }
 
@@ -83,7 +85,8 @@ public class BTreeSearchIteratorTest
             iter.next();
             fail("Should throw NoSuchElementException");
         }
-        catch (NoSuchElementException ex) {
+        catch (NoSuchElementException ex)
+        {
         }
     }
 
@@ -92,7 +95,8 @@ public class BTreeSearchIteratorTest
     {
         assertIteratorExceptionBegin(iter1);
         assertIteratorExceptionBegin(iter2);
-        while (iter1.hasNext()) {
+        while (iter1.hasNext())
+        {
             assertTrue(iter2.hasNext());
             assertEquals(iter1.next(), iter2.next());
             assertEquals(iter1.current(), iter2.current());
@@ -104,10 +108,12 @@ public class BTreeSearchIteratorTest
 
     private static void assertBTreeSearchIteratorEquals(final BTreeSearchIterator<Integer, Integer> iter1,
                                                         final BTreeSearchIterator<Integer, Integer> iter2,
-                                                        int... targets) {
+                                                        int... targets)
+    {
         assertIteratorExceptionBegin(iter1);
         assertIteratorExceptionBegin(iter2);
-        for (int i : targets) {
+        for (int i : targets)
+        {
             Integer val1 = iter1.next(i);
             Integer val2 = iter2.next(i);
             assertEquals(val1, val2);
@@ -118,7 +124,8 @@ public class BTreeSearchIteratorTest
             }
         }
 
-        while (iter1.hasNext()) {
+        while (iter1.hasNext())
+        {
             assertTrue(iter2.hasNext());
             assertEquals(iter1.next(), iter2.next());
             assertEquals(iter1.current(), iter2.current());
