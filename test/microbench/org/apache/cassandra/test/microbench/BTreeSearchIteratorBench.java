@@ -19,15 +19,15 @@
 package org.apache.cassandra.test.microbench;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
-import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.Random;
 
 import org.apache.cassandra.utils.btree.BTreeSearchIterator;
 import org.apache.cassandra.utils.btree.BTree;
 import org.apache.cassandra.utils.btree.BTree.Dir;
-import org.apache.cassandra.utils.btree.FullBTreeSearchIterator;
 import org.apache.cassandra.utils.btree.UpdateFunction;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -36,6 +36,7 @@ import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
@@ -44,152 +45,76 @@ import org.openjdk.jmh.annotations.Warmup;
 
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(TimeUnit.MILLISECONDS)
-@Warmup(iterations = 3, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 20, time = 1, timeUnit = TimeUnit.SECONDS)
+@Warmup(iterations = 1, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
 @Fork(value = 2)
 @Threads(1)
 @State(Scope.Benchmark)
 public class BTreeSearchIteratorBench
 {
-    private int sum;
-    private Object[] btreeBig;  // 1000 nodes
-    private Object[] btreeLeaf; // 32 nodes leaf
-    private Object[] btreeOneElem; // only one node
+    @Param({"1", "16", "32", "100", "1000", "10000", "100000", "1000000"})
+    private int size;
 
-    private static List<Integer> seq(int count)
-    {
-        return seq(count, 0, 1);
-    }
+    private Object[] btree;
+    private ArrayList<String> data;
 
-    private static List<Integer> seq(int count, int base, int multi)
+    private static ArrayList<String> seq(int count)
     {
-        List<Integer> r = new ArrayList<>();
+        ArrayList<String> ret = new ArrayList<>();
         for (int i = 0 ; i < count ; i++)
-            r.add(i * multi + base);
-        return r;
+        {
+            String uuid = UUID.randomUUID().toString();
+            ret.add(uuid);
+        }
+        Collections.sort(ret);
+        return ret;
     }
 
-    private static final Comparator<Integer> CMP = new Comparator<Integer>()
+    private static final Comparator<String> CMP = new Comparator<String>()
     {
-        public int compare(Integer o1, Integer o2)
+        public int compare(String s1, String s2)
         {
-            return Integer.compare(o1, o2);
+            return s1.compareTo(s2);
         }
     };
 
     @Setup(Level.Trial)
     public void setup() throws Throwable
     {
-        btreeBig = BTree.build(seq(1000, 0, 2), UpdateFunction.noOp());
-        btreeLeaf = BTree.build(seq(32, 0, 2), UpdateFunction.noOp());
-        btreeOneElem = BTree.build(seq(1), UpdateFunction.noOp());
-        sum = 0;
+        data = seq(size);
+        btree = BTree.build(data, UpdateFunction.noOp());
     }
 
     @Benchmark
-    public void searchBigTreeTest()
+    public void searchFound()
     {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeBig, CMP, Dir.ASC);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
         Random rand = new Random(2);
-        Integer val = iter.next(rand.nextInt(1000) * 2);
+        String val = iter.next(data.get(rand.nextInt(size)));
         assert(val != null);
-        sum += val;
     }
 
     @Benchmark
-    public void searchNotFoundBigTreeTest()
+    public void searchNotFound()
     {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeBig, CMP, Dir.ASC);
-        Random rand = new Random(2);
-        Integer val = iter.next(rand.nextInt(1000) * 2 + 1);
-        assert(val == null);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
+        String uuid = UUID.randomUUID().toString();
+        String val = iter.next(uuid);
         if (val != null)
-        {
-            throw new RuntimeException("Should not find any result:" + val.toString());
-        }
+            System.out.println("WOOOOOOO uuid collision ^_^!");
     }
 
     @Benchmark
-    public void iteratorBigTreeTest()
+    public void iteratorTree()
     {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeBig, CMP, Dir.ASC);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
+        String uuid = UUID.randomUUID().toString();
         while(iter.hasNext())
         {
-            sum += iter.next();
-        }
-    }
-
-    @Benchmark
-    public void iteratorBigFullTreeTest()
-    {
-        FullBTreeSearchIterator<Integer, Integer> iter = new FullBTreeSearchIterator<>(btreeBig, CMP, Dir.ASC);
-        while(iter.hasNext())
-        {
-            sum += iter.next();
-        }
-    }
-
-    @Benchmark
-    public void searchFoundLeafTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeLeaf, CMP, Dir.ASC);
-        Random rand = new Random(2);
-        Integer val = iter.next(rand.nextInt(32) * 2);
-        assert(val != null);
-        sum += val;
-    }
-
-    @Benchmark
-    public void searchNotFoundLeafTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeLeaf, CMP, Dir.ASC);
-        Random rand = new Random(2);
-        Integer val = iter.next(rand.nextInt(32) * 2 + 1);
-        assert(val == null);
-        if (val != null)
-        {
-            throw new RuntimeException("Should not find any result: " + val.toString());
-        }
-    }
-
-    @Benchmark
-    public void iteratorLeafTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeLeaf, CMP, Dir.ASC);
-        while(iter.hasNext())
-        {
-            sum += iter.next();
-        }
-    }
-
-    @Benchmark
-    public void searchFoundOneElemTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeOneElem, CMP, Dir.ASC);
-        Integer val = iter.next(0);
-        assert(val != null);
-        sum += val;
-    }
-
-    @Benchmark
-    public void searchNotFoundOneElemTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeOneElem, CMP, Dir.ASC);
-        Integer val = iter.next(1);
-        assert(val == null);
-        if (val != null)
-        {
-            throw new RuntimeException("Should not find any result: " + val.toString());
-        }
-    }
-
-    @Benchmark
-    public void iteratorOneElemTreeTest()
-    {
-        BTreeSearchIterator<Integer, Integer> iter = BTree.slice(btreeOneElem, CMP, Dir.ASC);
-        while(iter.hasNext())
-        {
-            sum += iter.next();
+            if (uuid.equals(iter.next()))
+            {
+                System.out.println("WOOOOOOO uuid collision ^_^!");
+            }
         }
     }
 }
