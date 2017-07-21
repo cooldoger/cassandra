@@ -53,18 +53,27 @@ import org.openjdk.jmh.annotations.Warmup;
 public class BTreeSearchIteratorBench
 {
     @Param({"1", "16", "32", "100", "1000", "10000", "100000", "1000000"})
-    private int size;
+    private int btreeSize;
+
+    @Param({"36", "100", "10000", "100000"})
+    private int cellSize;
 
     private Object[] btree;
     private ArrayList<String> data;
 
-    private static ArrayList<String> seq(int count)
+    private static ArrayList<String> seq(int count, int minCellSize)
     {
+        int len = 1;
         ArrayList<String> ret = new ArrayList<>();
         for (int i = 0 ; i < count ; i++)
         {
-            String uuid = UUID.randomUUID().toString();
-            ret.add(uuid);
+            StringBuilder sb = new StringBuilder();
+            while (sb.length() < minCellSize)
+            {
+                String uuid = UUID.randomUUID().toString();
+                sb.append(uuid);
+            }
+            ret.add(sb.toString());
         }
         Collections.sort(ret);
         return ret;
@@ -81,7 +90,7 @@ public class BTreeSearchIteratorBench
     @Setup(Level.Trial)
     public void setup() throws Throwable
     {
-        data = seq(size);
+        data = seq(btreeSize, cellSize);
         btree = BTree.build(data, UpdateFunction.noOp());
     }
 
@@ -90,7 +99,7 @@ public class BTreeSearchIteratorBench
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
         Random rand = new Random(2);
-        String val = iter.next(data.get(rand.nextInt(size)));
+        String val = iter.next(data.get(rand.nextInt(btreeSize)));
         assert(val != null);
     }
 
