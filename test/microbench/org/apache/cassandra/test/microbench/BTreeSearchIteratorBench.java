@@ -55,7 +55,7 @@ public class BTreeSearchIteratorBench
     @Param({"1", "16", "32", "100", "1000", "10000", "100000", "1000000"})
     private int btreeSize;
 
-    @Param({"36", "100", "10000", "100000"})
+    @Param({"36", "100", "1000", "10000"})
     private int cellSize;
 
     private Object[] btree;
