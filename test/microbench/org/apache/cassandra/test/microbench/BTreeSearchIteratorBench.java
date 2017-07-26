@@ -61,6 +61,8 @@ public class BTreeSearchIteratorBench
     private Object[] btree;
     private ArrayList<String> data;
     private String testUUID;
+    private String existTarget;
+    private String nonExistTarget;
 
     private static ArrayList<String> seq(int count, int minCellSize)
     {
@@ -94,14 +96,16 @@ public class BTreeSearchIteratorBench
         data = seq(btreeSize, cellSize);
         btree = BTree.build(data, UpdateFunction.noOp());
         testUUID = UUID.randomUUID().toString();
+        Random rand = new Random(2);
+        existTarget = data.get(rand.nextInt(btreeSize));
+        nonExistTarget = existTarget.substring(0, existTarget.length() - 1) + "!";
     }
 
     @Benchmark
     public void searchFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        Random rand = new Random(2);
-        String val = iter.next(data.get(rand.nextInt(btreeSize)));
+        String val = iter.next(existTarget);
         assert(val != null);
     }
 
@@ -109,10 +113,7 @@ public class BTreeSearchIteratorBench
     public void searchNotFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        Random rand = new Random(2);
-        String str = data.get(rand.nextInt(btreeSize));
-        String target = str.substring(0, str.length() - 1) + "!"; // replace the last character to !, so it cannot be found
-        String val = iter.next(target);
+        String val = iter.next(nonExistTarget);
         assert(val == null);
     }
 
