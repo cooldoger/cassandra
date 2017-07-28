@@ -107,7 +107,7 @@ public class BTreeSearchIteratorBench
     public void multiSearchFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        for (int i = targetIdx; i < btreeSize; i++)
+        for (int i = targetIdx; i < btreeSize; i += 2)
         {
             String val = iter.next(data.get(i));
             assert(val != null);
