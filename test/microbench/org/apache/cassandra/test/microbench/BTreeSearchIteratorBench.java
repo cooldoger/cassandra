@@ -60,10 +60,7 @@ public class BTreeSearchIteratorBench
 
     private Object[] btree;
     private ArrayList<String> data;
-    private String testUUID;
-    private String existTarget;
-    private int targetIdx;
-    private String nonExistTarget;
+    Random rand = new Random(2);
 
     private static ArrayList<String> seq(int count, int minCellSize)
     {
@@ -96,18 +93,44 @@ public class BTreeSearchIteratorBench
     {
         data = seq(btreeSize, cellSize);
         btree = BTree.build(data, UpdateFunction.noOp());
-        testUUID = UUID.randomUUID().toString();
-        Random rand = new Random(2);
-        targetIdx = rand.nextInt(btreeSize);
-        existTarget = data.get(targetIdx);
-        nonExistTarget = existTarget.substring(0, existTarget.length() - 1) + "!";
+    }
+
+    @Benchmark
+    public void searchFound()
+    {
+        int targetIdx = rand.nextInt();
+        String existTarget = data.get(targetIdx);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
+        String val = iter.next(existTarget);
+        assert(val != null);
+    }
+
+    @Benchmark
+    public void searchNotFound()
+    {
+        int targetIdx = rand.nextInt();
+        String existTarget = data.get(targetIdx);
+        String nonExistTarget = existTarget.substring(0, existTarget.length() - 1) + "!";
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
+        String val = iter.next(nonExistTarget);
+        assert(val == null);
+    }
+
+    @Benchmark
+    public void iteratorTree()
+    {
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
+        while(iter.hasNext())
+        {
+            String val = iter.next();
+        }
     }
 
     @Benchmark
     public void multiSearchFound()
     {
         BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        for (int i = targetIdx; i < btreeSize; i += 2)
+        for (int i = 0; i < btreeSize; i += 2)
         {
             String val = iter.next(data.get(i));
             assert(val != null);
