@@ -35,6 +35,7 @@ import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
+import org.openjdk.jmh.annotations.OperationsPerInvocation;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
@@ -52,21 +53,26 @@ import org.openjdk.jmh.annotations.Warmup;
 @State(Scope.Benchmark)
 public class BTreeSearchIteratorBench
 {
-    @Param({"1", "16", "32", "100", "1000", "10000", "100000"})
-    private int btreeSize;
+    private final int btreeSize = 32;
 
-    @Param({"36", "100", "1000", "10000"})
-    private int cellSize;
+    @Param({ "0",  "1",  "2",  "3",  "4",  "5",  "6",  "7",
+             "8",  "9", "10", "11", "12", "13", "14", "15",
+            "16", "17", "18", "19", "20", "21", "22", "23",
+            "24", "25", "26", "27", "28", "29", "30", "31"})
+    private int targetIdx;
 
+    private final int cellSize = 1000;
+
+    @Param({"ASC", "DESC"})
+    private String dirParam;
+
+    private Dir dir;
     private Object[] btree;
     private ArrayList<String> data;
-    private String testUUID;
-    private String existTarget;
-    private String nonExistTarget;
+    private ArrayList<String> nonExistData;
 
     private static ArrayList<String> seq(int count, int minCellSize)
     {
-        int len = 1;
         ArrayList<String> ret = new ArrayList<>();
         for (int i = 0 ; i < count ; i++)
         {
@@ -94,29 +100,32 @@ public class BTreeSearchIteratorBench
     public void setup() throws Throwable
     {
         data = seq(btreeSize, cellSize);
+        nonExistData = new ArrayList<>();
         btree = BTree.build(data, UpdateFunction.noOp());
-        testUUID = UUID.randomUUID().toString();
-        Random rand = new Random(2);
-        existTarget = data.get(rand.nextInt(btreeSize));
-        nonExistTarget = existTarget.substring(0, existTarget.length() - 1) + "!";
+        for (String d : data)
+        {
+            nonExistData.add(d.substring(0, d.length() - 1) + "!");
+        }
+        dir = Dir.valueOf(dirParam);
     }
 
     @Benchmark
     public void searchFound()
     {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        String val = iter.next(existTarget);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
+        String val = iter.next(data.get(targetIdx));
         assert(val != null);
     }
 
     @Benchmark
     public void searchNotFound()
     {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        String val = iter.next(nonExistTarget);
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
+        String val = iter.next(nonExistData.get(targetIdx));
         assert(val == null);
     }
 
+    /*
     @Benchmark
     public void iteratorTree()
     {
@@ -124,6 +133,19 @@ public class BTreeSearchIteratorBench
         while(iter.hasNext())
         {
             String val = iter.next();
+        }
+    }
+    */
+
+    @Benchmark
+    @OperationsPerInvocation(btreeSize)
+    public void multiSearchFound()
+    {
+        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
+        for (int i = 0; i < btreeSize; i++)
+        {
+            String val = iter.next(data.get(i));
+            assert(val != null);
         }
     }
 }
