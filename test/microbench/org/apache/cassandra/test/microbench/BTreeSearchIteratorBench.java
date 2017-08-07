@@ -63,7 +63,7 @@ public class BTreeSearchIteratorBench
 
     private final int cellSize = 1000;
 
-    @Param({"ASC", "DESC"})
+    @Param({"ASC"})
     private String dirParam;
 
     private Dir dir;
@@ -135,7 +135,7 @@ public class BTreeSearchIteratorBench
             String val = iter.next();
         }
     }
-    */
+
 
     @Benchmark
     @OperationsPerInvocation(btreeSize)
@@ -148,4 +148,5 @@ public class BTreeSearchIteratorBench
             assert(val != null);
         }
     }
+    */
 }
