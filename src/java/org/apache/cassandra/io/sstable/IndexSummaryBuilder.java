@@ -36,6 +36,8 @@ public class IndexSummaryBuilder implements AutoCloseable
 {
     private static final Logger logger = LoggerFactory.getLogger(IndexSummaryBuilder.class);
 
+    private static final int MAX_NUM_ENTRIES = Integer.MAX_VALUE / 40;
+
     // the offset in the keys memory region to look for a given summary boundary
     private final SafeMemoryWriter offsets;
     private final SafeMemoryWriter entries;
@@ -91,12 +93,16 @@ public class IndexSummaryBuilder implements AutoCloseable
         this.startPoints = Downsampling.getStartPoints(BASE_SAMPLING_LEVEL, samplingLevel);
 
         long maxExpectedEntries = expectedKeys / minIndexInterval;
-        if (maxExpectedEntries > Integer.MAX_VALUE)
+
+        // for initializing data structures, adjust our estimates based on the sampling level
+        maxExpectedEntries = Math.max(1, (maxExpectedEntries * samplingLevel) / BASE_SAMPLING_LEVEL);
+
+        if (maxExpectedEntries > MAX_NUM_ENTRIES)
         {
             // that's a _lot_ of keys, and a very low min index interval
-            int effectiveMinInterval = (int) Math.ceil((double) Integer.MAX_VALUE / expectedKeys);
+            int effectiveMinInterval = (int) Math.ceil((double) expectedKeys / MAX_NUM_ENTRIES);
             maxExpectedEntries = expectedKeys / effectiveMinInterval;
-            assert maxExpectedEntries <= Integer.MAX_VALUE : maxExpectedEntries;
+            assert maxExpectedEntries <= MAX_NUM_ENTRIES : maxExpectedEntries;
             logger.warn("min_index_interval of {} is too low for {} expected keys; using interval of {} instead",
                         minIndexInterval, expectedKeys, effectiveMinInterval);
             this.minIndexInterval = effectiveMinInterval;
@@ -106,8 +112,6 @@ public class IndexSummaryBuilder implements AutoCloseable
             this.minIndexInterval = minIndexInterval;
         }
 
-        // for initializing data structures, adjust our estimates based on the sampling level
-        maxExpectedEntries = Math.max(1, (maxExpectedEntries * samplingLevel) / BASE_SAMPLING_LEVEL);
         offsets = new SafeMemoryWriter(4 * maxExpectedEntries).order(ByteOrder.nativeOrder());
         entries = new SafeMemoryWriter(40 * maxExpectedEntries).order(ByteOrder.nativeOrder());
 
