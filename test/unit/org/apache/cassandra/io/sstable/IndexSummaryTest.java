@@ -105,11 +105,13 @@ public class IndexSummaryTest
     @Test
     public void testAddEmptyKey() throws Exception
     {
+        int minInterval = 1;
         IPartitioner p = new RandomPartitioner();
-        try (IndexSummaryBuilder builder = new IndexSummaryBuilder(1, 1, BASE_SAMPLING_LEVEL))
+        try (IndexSummaryBuilder builder = new IndexSummaryBuilder(1, minInterval, BASE_SAMPLING_LEVEL))
         {
             builder.maybeAddEntry(p.decorateKey(ByteBufferUtil.EMPTY_BYTE_BUFFER), 0);
             IndexSummary summary = builder.build(p);
+            assertEquals(minInterval, summary.getMinIndexInterval());
             assertEquals(1, summary.size());
             assertEquals(0, summary.getPosition(0));
             assertArrayEquals(new byte[0], summary.getKey(0));
@@ -119,11 +121,38 @@ public class IndexSummaryTest
             DataInputStream dis = new DataInputStream(new ByteArrayInputStream(dos.toByteArray()));
             IndexSummary loaded = IndexSummary.serializer.deserialize(dis, p, 1, 1);
 
+            assertEquals(minInterval, loaded.getMinIndexInterval());
             assertEquals(1, loaded.size());
             assertEquals(summary.getPosition(0), loaded.getPosition(0));
             assertArrayEquals(summary.getKey(0), summary.getKey(0));
             summary.close();
             loaded.close();
+        }
+    }
+
+    @Test
+    public void testAddLargeNumKeys() throws Exception
+    {
+        int minInterval = 1;
+        long numKeys = Integer.MAX_VALUE / 40 + 1;
+        IPartitioner p = new RandomPartitioner();
+        try (IndexSummaryBuilder builder = new IndexSummaryBuilder(numKeys, minInterval, BASE_SAMPLING_LEVEL))
+        {
+            builder.maybeAddEntry(p.decorateKey(ByteBufferUtil.EMPTY_BYTE_BUFFER), 0);
+            IndexSummary summary = builder.build(p);
+            assertTrue(summary.getMinIndexInterval() > minInterval);
+            assertEquals(1, summary.size());
+            assertEquals(0, summary.getPosition(0));
+            summary.close();
+        }
+
+        numKeys = (long)Integer.MAX_VALUE + 1;
+        try (IndexSummaryBuilder builder = new IndexSummaryBuilder(numKeys, minInterval, BASE_SAMPLING_LEVEL))
+        {
+            builder.maybeAddEntry(p.decorateKey(ByteBufferUtil.EMPTY_BYTE_BUFFER), 0);
+            IndexSummary summary = builder.build(p);
+            assertTrue(summary.getMinIndexInterval() > 40);
+            summary.close();
         }
     }
 
