@@ -36,7 +36,14 @@ public class IndexSummaryBuilder implements AutoCloseable
 {
     private static final Logger logger = LoggerFactory.getLogger(IndexSummaryBuilder.class);
 
-    private static final int MAX_NUM_ENTRIES = Integer.MAX_VALUE / 40;
+    // it's the typical entry size for memory initialization: sizeof(DecoratedKey + long)
+    private static final int INITIAL_ENTRY_SIZE = 32 + 8;
+    private static final int OFFSET_SIZE = 4; // sizeof(int)
+
+    // The maximum summary size is 2G (Integer.MAX_VALUE), it could actually hold more entries if
+    // the DecoratedKey (partition key) size is smaller than 32. Even that's the case, it's still
+    // good to increase effectiveMinInterval to automatically reduce the summary size.
+    private static final int MAX_NUM_ENTRIES = Integer.MAX_VALUE / INITIAL_ENTRY_SIZE;
 
     // the offset in the keys memory region to look for a given summary boundary
     private final SafeMemoryWriter offsets;
@@ -112,8 +119,8 @@ public class IndexSummaryBuilder implements AutoCloseable
             this.minIndexInterval = minIndexInterval;
         }
 
-        offsets = new SafeMemoryWriter(4 * maxExpectedEntries).order(ByteOrder.nativeOrder());
-        entries = new SafeMemoryWriter(40 * maxExpectedEntries).order(ByteOrder.nativeOrder());
+        offsets = new SafeMemoryWriter(OFFSET_SIZE * maxExpectedEntries).order(ByteOrder.nativeOrder());
+        entries = new SafeMemoryWriter(INITIAL_ENTRY_SIZE * maxExpectedEntries).order(ByteOrder.nativeOrder());
 
         // the summary will always contain the first index entry (downsampling will never remove it)
         nextSamplePosition = 0;
