@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.cassandra.utils.btree.BTreeSearchIterator;
 import org.apache.cassandra.utils.btree.BTree;
 import org.apache.cassandra.utils.btree.BTree.Dir;
+import org.apache.cassandra.utils.btree.FullBTreeSearchIterator;
+import org.apache.cassandra.utils.btree.LeafBTreeSearchIterator;
 import org.apache.cassandra.utils.btree.UpdateFunction;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -43,10 +45,10 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Threads;
 import org.openjdk.jmh.annotations.Warmup;
 
-@BenchmarkMode(Mode.Throughput)
-@OutputTimeUnit(TimeUnit.MILLISECONDS)
+@BenchmarkMode(Mode.SampleTime)
+@OutputTimeUnit(TimeUnit.NANOSECONDS)
 @Warmup(iterations = 1, time = 1, timeUnit = TimeUnit.SECONDS)
-@Measurement(iterations = 5, time = 1, timeUnit = TimeUnit.SECONDS)
+@Measurement(iterations = 2, time = 4, timeUnit = TimeUnit.SECONDS)
 @Fork(value = 2)
 @Threads(1)
 @State(Scope.Benchmark)
@@ -54,10 +56,11 @@ public class BTreeSearchIteratorBench
 {
     private final int btreeSize = 32;
 
-    @Param({ "0",  "1",  "2",  "3",  "4",  "5",  "6",  "7",
-             "8",  "9", "10", "11", "12", "13", "14", "15",
-            "16", "17", "18", "19", "20", "21", "22", "23",
-            "24", "25", "26", "27", "28", "29", "30", "31"})
+    @Param({"TREE", "LEAF"})
+    private String iteratorType;
+
+    @Param({ "0",  "1",  "2",  "3", "16", "17", "18", "19",
+            "24", "25", "26", "30", "31" })
     private int targetIdx;
 
     private final int cellSize = 1000;
@@ -106,44 +109,62 @@ public class BTreeSearchIteratorBench
             nonExistData.add(d.substring(0, d.length() - 1) + "!");
         }
         dir = Dir.valueOf(dirParam);
+
     }
 
     @Benchmark
     public void searchFound()
     {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
+        BTreeSearchIterator<String, String> iter = getIterator();
         String val = iter.next(data.get(targetIdx));
         assert(val != null);
+    }
+
+    private BTreeSearchIterator<String,String> getIterator()
+    {
+        switch (iteratorType)
+        {
+            case "LEAF":
+                return new LeafBTreeSearchIterator<>(btree, CMP, dir);
+            case "TREE":
+                return new FullBTreeSearchIterator<>(btree, CMP, dir);
+            default:
+                throw new IllegalArgumentException("unknown btree iterator type: " + iteratorType);
+        }
     }
 
     @Benchmark
     public void searchNotFound()
     {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
+        BTreeSearchIterator<String, String> iter = getIterator();
         String val = iter.next(nonExistData.get(targetIdx));
         assert(val == null);
     }
 
-    @Benchmark
-    public void iteratorTree()
-    {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, Dir.ASC);
-        while(iter.hasNext())
-        {
-            String val = iter.next();
-            assert(val != null);
-        }
-    }
-
-    @Benchmark
-    @OperationsPerInvocation(btreeSize)
-    public void multiSearchFound()
-    {
-        BTreeSearchIterator<String, String> iter = BTree.slice(btree, CMP, dir);
-        for (int i = 0; i < btreeSize; i++)
-        {
-            String val = iter.next(data.get(i));
-            assert(val != null);
-        }
-    }
+//    /**
+//     * Simply walk the data set from the iterator
+//     */
+//    @Benchmark
+//    @OperationsPerInvocation(btreeSize)
+//    public void iteratorTree()
+//    {
+//        BTreeSearchIterator<String, String> iter = getIterator();
+//        while(iter.hasNext())
+//        {
+//            String val = iter.next();
+//            assert(val != null);
+//        }
+//    }
+//
+//    @Benchmark
+//    @OperationsPerInvocation(btreeSize)
+//    public void multiSearchFound()
+//    {
+//        BTreeSearchIterator<String, String> iter = getIterator();
+//        for (int i = 0; i < btreeSize; i++)
+//        {
+//            String val = iter.next(data.get(i));
+//            assert(val != null);
+//        }
+//    }
 }
