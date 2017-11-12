@@ -140,31 +140,4 @@ public class BTreeSearchIteratorBench
         String val = iter.next(nonExistData.get(targetIdx));
         assert(val == null);
     }
-
-//    /**
-//     * Simply walk the data set from the iterator
-//     */
-//    @Benchmark
-//    @OperationsPerInvocation(btreeSize)
-//    public void iteratorTree()
-//    {
-//        BTreeSearchIterator<String, String> iter = getIterator();
-//        while(iter.hasNext())
-//        {
-//            String val = iter.next();
-//            assert(val != null);
-//        }
-//    }
-//
-//    @Benchmark
-//    @OperationsPerInvocation(btreeSize)
-//    public void multiSearchFound()
-//    {
-//        BTreeSearchIterator<String, String> iter = getIterator();
-//        for (int i = 0; i < btreeSize; i++)
-//        {
-//            String val = iter.next(data.get(i));
-//            assert(val != null);
-//        }
-//    }
 }
