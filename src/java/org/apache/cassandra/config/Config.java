@@ -75,6 +75,7 @@ public class Config
     public DiskAccessMode disk_access_mode = DiskAccessMode.auto;
 
     public DiskFailurePolicy disk_failure_policy = DiskFailurePolicy.ignore;
+    public CorruptSSTablePolicy corrupt_sstable_policy = CorruptSSTablePolicy.ignore;
     public CommitFailurePolicy commit_failure_policy = CommitFailurePolicy.stop;
 
     /* initial token in the ring */
@@ -408,6 +409,14 @@ public class Config
     public enum DiskFailurePolicy
     {
         best_effort,
+        stop,
+        ignore,
+        stop_paranoid,
+        die
+    }
+
+    public enum CorruptSSTablePolicy
+    {
         stop,
         ignore,
         stop_paranoid,

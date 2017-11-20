@@ -43,11 +43,17 @@ public class DefaultFSErrorHandler implements FSErrorHandler
             handleStartupFSError(e);
 
         JVMStabilityInspector.inspectThrowable(e);
-        switch (DatabaseDescriptor.getDiskFailurePolicy())
+        switch (DatabaseDescriptor.getCorruptSSTablePolicy())
         {
             case stop_paranoid:
+            case stop:
                 StorageService.instance.stopTransports();
                 break;
+            case ignore:
+                // already logged, so left nothing to do
+                break;
+            default:
+                throw new IllegalStateException();
         }
     }
 

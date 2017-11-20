@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.apache.cassandra.config.Config;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.io.FSReadError;
+import org.apache.cassandra.io.sstable.CorruptSSTableException;
 
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -47,6 +48,8 @@ public class JVMStabilityInspectorTest
 
         Config.DiskFailurePolicy oldPolicy = DatabaseDescriptor.getDiskFailurePolicy();
         Config.CommitFailurePolicy oldCommitPolicy = DatabaseDescriptor.getCommitFailurePolicy();
+        Config.CorruptSSTablePolicy oldCorruptSSTablePolicy = DatabaseDescriptor.getCorruptSSTablePolicy();
+
         try
         {
             killerForTests.reset();
@@ -75,12 +78,22 @@ public class JVMStabilityInspectorTest
             JVMStabilityInspector.inspectThrowable(new Exception(new OutOfMemoryError()));
             assertTrue(killerForTests.wasKilled());
 
+            killerForTests.reset();
+            JVMStabilityInspector.inspectThrowable(new CorruptSSTableException(new IOException(), "/file/tmp.db"));
+            assertFalse(killerForTests.wasKilled());
+
+            DatabaseDescriptor.setCorruptSSTablePolicy(Config.CorruptSSTablePolicy.die);
+            killerForTests.reset();
+            JVMStabilityInspector.inspectThrowable(new CorruptSSTableException(new IOException(), "/file/tmp.db"));
+            assertTrue(killerForTests.wasKilled());
+
         }
         finally
         {
             JVMStabilityInspector.replaceKiller(originalKiller);
             DatabaseDescriptor.setDiskFailurePolicy(oldPolicy);
             DatabaseDescriptor.setCommitFailurePolicy(oldCommitPolicy);
+            DatabaseDescriptor.setCorruptSSTablePolicy(oldCorruptSSTablePolicy);
         }
     }
 

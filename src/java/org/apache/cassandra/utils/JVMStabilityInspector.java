@@ -59,8 +59,12 @@ public final class JVMStabilityInspector
             HeapUtils.generateHeapDump();
         }
 
-        if (DatabaseDescriptor.getDiskFailurePolicy() == Config.DiskFailurePolicy.die)
-            if (t instanceof FSError || t instanceof CorruptSSTableException)
+        if (DatabaseDescriptor.getDiskFailurePolicy() == Config.DiskFailurePolicy.die
+            && t instanceof FSError)
+            isUnstable = true;
+
+        if (DatabaseDescriptor.getCorruptSSTablePolicy() == Config.CorruptSSTablePolicy.die
+            && t instanceof CorruptSSTableException)
             isUnstable = true;
 
         // Check for file handle exhaustion

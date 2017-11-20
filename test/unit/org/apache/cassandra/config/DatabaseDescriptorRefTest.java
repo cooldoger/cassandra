@@ -66,6 +66,7 @@ public class DatabaseDescriptorRefTest
     "org.apache.cassandra.config.Config$CommitLogSync",
     "org.apache.cassandra.config.Config$DiskAccessMode",
     "org.apache.cassandra.config.Config$DiskFailurePolicy",
+    "org.apache.cassandra.config.Config$CorruptSSTablePolicy",
     "org.apache.cassandra.config.Config$CommitFailurePolicy",
     "org.apache.cassandra.config.Config$DiskOptimizationStrategy",
     "org.apache.cassandra.config.Config$InternodeCompression",
