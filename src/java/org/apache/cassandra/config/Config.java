@@ -419,7 +419,6 @@ public class Config
     {
         stop,
         ignore,
-        stop_paranoid,
         die
     }
 

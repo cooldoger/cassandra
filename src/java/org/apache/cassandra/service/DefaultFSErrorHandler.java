@@ -45,7 +45,6 @@ public class DefaultFSErrorHandler implements FSErrorHandler
         JVMStabilityInspector.inspectThrowable(e);
         switch (DatabaseDescriptor.getCorruptSSTablePolicy())
         {
-            case stop_paranoid:
             case stop:
                 StorageService.instance.stopTransports();
                 break;
