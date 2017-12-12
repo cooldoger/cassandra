@@ -135,10 +135,11 @@ public class ViewLongTest extends CQLTester
 
         for (int i = 0; i < writers * insertsPerWriter; i++)
         {
-            if (executeNet(protocolVersion, "SELECT COUNT(*) FROM system.batches").one().getLong(0) == 0)
-                break;
             try
             {
+                if (executeNet(protocolVersion, "SELECT COUNT(*) FROM system.batches").one().getLong(0) == 0)
+                    break;
+
                 // This will throw exceptions whenever there are exceptions trying to push the view values out, caused
                 // by the view becoming overwhelmed.
                 BatchlogManager.instance.startBatchlogReplay().get();
