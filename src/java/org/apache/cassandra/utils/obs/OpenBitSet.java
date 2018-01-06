@@ -23,6 +23,7 @@ import java.io.DataOutput;
 import java.io.IOException;
 
 import org.apache.cassandra.db.TypeSizes;
+import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.utils.concurrent.Ref;
 
 /**
@@ -437,7 +438,7 @@ public class OpenBitSet implements IBitSet
     // noop, let GC do the cleanup.
   }
 
-  public void serialize(DataOutput out) throws IOException
+  public void serialize(DataOutputPlus out) throws IOException
   {
     int bitLength = getNumWords();
     int pageSize = getPageSize();

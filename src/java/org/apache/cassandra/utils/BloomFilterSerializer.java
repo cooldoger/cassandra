@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.utils;
 
-import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.apache.cassandra.db.TypeSizes;
@@ -38,13 +38,13 @@ final class BloomFilterSerializer
         bf.bitset.serialize(out);
     }
 
-    public static BloomFilter deserialize(DataInput in) throws IOException
+    public static BloomFilter deserialize(DataInputStream in) throws IOException
     {
         return deserialize(in, false);
     }
 
     @SuppressWarnings("resource")
-    public static BloomFilter deserialize(DataInput in, boolean offheap) throws IOException
+    public static BloomFilter deserialize(DataInputStream in, boolean offheap) throws IOException
     {
         int hashes = in.readInt();
         IBitSet bs = offheap ? OffHeapBitSet.deserialize(in) : OpenBitSet.deserialize(in);

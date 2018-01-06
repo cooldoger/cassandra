@@ -18,6 +18,7 @@
 package org.apache.cassandra.utils;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -40,7 +41,7 @@ public class FilterFactory
         BloomFilterSerializer.serialize((BloomFilter) bf, output);
     }
 
-    public static IFilter deserialize(DataInput input, boolean offheap) throws IOException
+    public static IFilter deserialize(DataInputStream input, boolean offheap) throws IOException
     {
         return BloomFilterSerializer.deserialize(input, offheap);
     }
