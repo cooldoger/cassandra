@@ -188,25 +188,30 @@ public class BloomFilterTest
     }
 
     @Test
-    @Ignore
     public void testHugeBFSerialization() throws IOException
     {
         ByteBuffer test = ByteBuffer.wrap(new byte[] {0, 1});
 
         File file = FileUtils.createTempFile("bloomFilterTest-", ".dat");
-        BloomFilter filter = (BloomFilter) FilterFactory.getFilter(((long) Integer.MAX_VALUE / 8) + 1, 0.01d, true);
-        filter.add(FilterTestHelper.wrap(test));
-        DataOutputStreamPlus out = new BufferedDataOutputStreamPlus(new FileOutputStream(file));
-        FilterFactory.serialize(filter, out);
-        filter.bitset.serialize(out);
-        out.close();
-        filter.close();
+        try
+        {
+            BloomFilter filter = (BloomFilter) FilterFactory.getFilter(((long) Integer.MAX_VALUE / 8) + 1, 0.01d, true);
+            filter.add(FilterTestHelper.wrap(test));
+            DataOutputStreamPlus out = new BufferedDataOutputStreamPlus(new FileOutputStream(file));
+            FilterFactory.serialize(filter, out);
+            out.close();
+            filter.close();
 
-        DataInputStream in = new DataInputStream(new FileInputStream(file));
-        BloomFilter filter2 = (BloomFilter) FilterFactory.deserialize(in, true);
-        Assert.assertTrue(filter2.isPresent(FilterTestHelper.wrap(test)));
-        FileUtils.closeQuietly(in);
-        filter2.close();
+            DataInputStream in = new DataInputStream(new FileInputStream(file));
+            BloomFilter filter2 = (BloomFilter) FilterFactory.deserialize(in, true);
+            Assert.assertTrue(filter2.isPresent(FilterTestHelper.wrap(test)));
+            FileUtils.closeQuietly(in);
+            filter2.close();
+        }
+        finally
+        {
+            Assert.assertTrue(file.delete());
+        }
     }
 
     @Test

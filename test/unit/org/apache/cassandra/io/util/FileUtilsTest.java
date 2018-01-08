@@ -48,21 +48,28 @@ public class FileUtilsTest
     public void testTruncate() throws IOException
     {
         File file = FileUtils.createTempFile("testTruncate", "1");
-        final String expected = "The quick brown fox jumps over the lazy dog";
+        try
+        {
+            final String expected = "The quick brown fox jumps over the lazy dog";
 
-        Files.write(file.toPath(), expected.getBytes());
-        assertTrue(file.exists());
+            Files.write(file.toPath(), expected.getBytes());
+            assertTrue(file.exists());
 
-        byte[] b = Files.readAllBytes(file.toPath());
-        assertEquals(expected, new String(b, StandardCharsets.UTF_8));
+            byte[] b = Files.readAllBytes(file.toPath());
+            assertEquals(expected, new String(b, StandardCharsets.UTF_8));
 
-        FileUtils.truncate(file.getAbsolutePath(), 10);
-        b = Files.readAllBytes(file.toPath());
-        assertEquals("The quick ", new String(b, StandardCharsets.UTF_8));
+            FileUtils.truncate(file.getAbsolutePath(), 10);
+            b = Files.readAllBytes(file.toPath());
+            assertEquals("The quick ", new String(b, StandardCharsets.UTF_8));
 
-        FileUtils.truncate(file.getAbsolutePath(), 0);
-        b = Files.readAllBytes(file.toPath());
-        assertEquals(0, b.length);
+            FileUtils.truncate(file.getAbsolutePath(), 0);
+            b = Files.readAllBytes(file.toPath());
+            assertEquals(0, b.length);
+        }
+        finally
+        {
+            assertTrue(file.delete());
+        }
     }
 
     @Test

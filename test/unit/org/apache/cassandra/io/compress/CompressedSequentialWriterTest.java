@@ -26,6 +26,7 @@ import java.util.*;
 
 import static org.apache.commons.io.FileUtils.readFileToByteArray;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import com.google.common.io.Files;
 import org.junit.After;
@@ -212,6 +213,10 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
         catch (IOException e)
         {
             Assert.fail();
+        }
+        finally
+        {
+            assertTrue(offsetsFile.delete());
         }
     }
 
