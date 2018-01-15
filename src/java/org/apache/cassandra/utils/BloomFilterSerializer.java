@@ -18,6 +18,7 @@
 package org.apache.cassandra.utils;
 
 import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.apache.cassandra.db.TypeSizes;
@@ -31,17 +32,17 @@ final class BloomFilterSerializer
     {
     }
 
-    public static void serialize(BloomFilter bf, DataOutputPlus out) throws IOException
+    public static void serialize(BloomFilter bf, DataOutputPlus out, boolean oldBfFormat) throws IOException
     {
         out.writeInt(bf.hashCount);
-        bf.bitset.serialize(out);
+        bf.bitset.serialize(out, oldBfFormat);
     }
 
     @SuppressWarnings("resource")
-    public static BloomFilter deserialize(DataInput in) throws IOException
+    public static BloomFilter deserialize(DataInputStream in, boolean oldBfFormat) throws IOException
     {
         int hashes = in.readInt();
-        IBitSet bs = OffHeapBitSet.deserialize(in);
+        IBitSet bs = OffHeapBitSet.deserialize(in, oldBfFormat);
 
         return new BloomFilter(hashes, bs);
     }

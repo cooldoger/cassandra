@@ -46,15 +46,15 @@ public class SerializationsTest extends AbstractSerializationsTester
         DatabaseDescriptor.daemonInitialization();
     }
 
-    private static void testBloomFilterWrite1000() throws IOException
+    private static void testBloomFilterWrite1000(boolean oldBfFormat) throws IOException
     {
         try (IFilter bf = FilterFactory.getFilter(1000000, 0.0001))
         {
             for (int i = 0; i < 1000; i++)
                 bf.add(Util.dk(Int32Type.instance.decompose(i)));
-            try (DataOutputStreamPlus out = getOutput("3.0", "utils.BloomFilter1000.bin"))
+            try (DataOutputStreamPlus out = getOutput(oldBfFormat ? "3.0" : "4.0", "utils.BloomFilter1000.bin"))
             {
-                FilterFactory.serialize(bf, out);
+                FilterFactory.serialize(bf, out, oldBfFormat);
             }
         }
     }
@@ -63,10 +63,29 @@ public class SerializationsTest extends AbstractSerializationsTester
     public void testBloomFilterRead1000() throws IOException
     {
         if (EXECUTE_WRITES)
-            testBloomFilterWrite1000();
+        {
+            testBloomFilterWrite1000(false);
+            testBloomFilterWrite1000(true);
+        }
+
+        try (DataInputStream in = getInput("4.0", "utils.BloomFilter1000.bin");
+             IFilter filter = FilterFactory.deserialize(in, false))
+        {
+            boolean present;
+            for (int i = 0 ; i < 1000 ; i++)
+            {
+                present = filter.isPresent(Util.dk(Int32Type.instance.decompose(i)));
+                Assert.assertTrue(present);
+            }
+            for (int i = 1000 ; i < 2000 ; i++)
+            {
+                present = filter.isPresent(Util.dk(Int32Type.instance.decompose(i)));
+                Assert.assertFalse(present);
+            }
+        }
 
         try (DataInputStream in = getInput("3.0", "utils.BloomFilter1000.bin");
-             IFilter filter = FilterFactory.deserialize(in))
+             IFilter filter = FilterFactory.deserialize(in, true))
         {
             boolean present;
             for (int i = 0 ; i < 1000 ; i++)
@@ -85,15 +104,15 @@ public class SerializationsTest extends AbstractSerializationsTester
     @Test
     public void testBloomFilterTable() throws Exception
     {
-        testBloomFilterTable("test/data/bloom-filter/la/foo/la-1-big-Filter.db");
+        testBloomFilterTable("test/data/bloom-filter/la/foo/la-1-big-Filter.db", true);
     }
 
-    private static void testBloomFilterTable(String file) throws Exception
+    private static void testBloomFilterTable(String file, boolean oldBfFormat) throws Exception
     {
         Murmur3Partitioner partitioner = new Murmur3Partitioner();
 
         try (DataInputStream in = new DataInputStream(new FileInputStream(new File(file)));
-             IFilter filter = FilterFactory.deserialize(in))
+             IFilter filter = FilterFactory.deserialize(in, oldBfFormat))
         {
             for (int i = 1; i <= 10; i++)
             {

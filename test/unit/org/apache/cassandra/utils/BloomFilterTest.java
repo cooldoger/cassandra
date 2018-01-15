@@ -48,14 +48,14 @@ public class BloomFilterTest
 
     }
 
-    public static IFilter testSerialize(IFilter f) throws IOException
+    public static IFilter testSerialize(IFilter f, boolean oldBfFormat) throws IOException
     {
         f.add(FilterTestHelper.bytes("a"));
         DataOutputBuffer out = new DataOutputBuffer();
-        FilterFactory.serialize(f, out);
+        FilterFactory.serialize(f, out, oldBfFormat);
 
         ByteArrayInputStream in = new ByteArrayInputStream(out.getData(), 0, out.getLength());
-        IFilter f2 = FilterFactory.deserialize(new DataInputStream(in));
+        IFilter f2 = FilterFactory.deserialize(new DataInputStream(in), oldBfFormat);
 
         assert f2.isPresent(FilterTestHelper.bytes("a"));
         assert !f2.isPresent(FilterTestHelper.bytes("b"));
@@ -132,7 +132,8 @@ public class BloomFilterTest
     @Test
     public void testSerialize() throws IOException
     {
-        BloomFilterTest.testSerialize(bfInvHashes).close();
+        BloomFilterTest.testSerialize(bfInvHashes, true).close();
+        BloomFilterTest.testSerialize(bfInvHashes, false).close();
     }
 
     @Test
@@ -206,13 +207,12 @@ public class BloomFilterTest
         BloomFilter filter = (BloomFilter) FilterFactory.getFilter(((long) Integer.MAX_VALUE / 8) + 1, 0.01d);
         filter.add(FilterTestHelper.wrap(test));
         DataOutputStreamPlus out = new BufferedDataOutputStreamPlus(new FileOutputStream(file));
-        FilterFactory.serialize(filter, out);
-        filter.bitset.serialize(out);
+        FilterFactory.serialize(filter, out, false);
         out.close();
         filter.close();
 
         DataInputStream in = new DataInputStream(new FileInputStream(file));
-        BloomFilter filter2 = (BloomFilter) FilterFactory.deserialize(in);
+        BloomFilter filter2 = (BloomFilter) FilterFactory.deserialize(in, false);
         Assert.assertTrue(filter2.isPresent(FilterTestHelper.wrap(test)));
         FileUtils.closeQuietly(in);
         filter2.close();

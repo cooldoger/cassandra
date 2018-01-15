@@ -17,7 +17,7 @@
  */
 package org.apache.cassandra.utils;
 
-import java.io.DataInput;
+import java.io.DataInputStream;
 import java.io.IOException;
 
 import org.slf4j.Logger;
@@ -34,14 +34,14 @@ public class FilterFactory
     private static final Logger logger = LoggerFactory.getLogger(FilterFactory.class);
     private static final long BITSET_EXCESS = 20;
 
-    public static void serialize(IFilter bf, DataOutputPlus output) throws IOException
+    public static void serialize(IFilter bf, DataOutputPlus output, boolean oldBfFormat) throws IOException
     {
-        BloomFilterSerializer.serialize((BloomFilter) bf, output);
+        BloomFilterSerializer.serialize((BloomFilter) bf, output, oldBfFormat);
     }
 
-    public static IFilter deserialize(DataInput input) throws IOException
+    public static IFilter deserialize(DataInputStream input, boolean oldBfFormat) throws IOException
     {
-        return BloomFilterSerializer.deserialize(input);
+        return BloomFilterSerializer.deserialize(input, oldBfFormat);
     }
 
     /**
