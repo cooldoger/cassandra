@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import org.junit.Before;
 import org.junit.Test;
 
+import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
 import org.apache.cassandra.config.Schema;
@@ -36,6 +37,7 @@ import org.apache.cassandra.dht.RandomPartitioner;
 import org.apache.cassandra.dht.Token;
 import org.apache.cassandra.locator.TokenMetadata;
 import org.apache.cassandra.net.MessagingService;
+import org.apache.cassandra.schema.KeyspaceParams;
 import org.apache.cassandra.service.StorageService;
 
 import static org.junit.Assert.assertEquals;
@@ -99,6 +101,10 @@ public class GossiperTest
     public void testSchemaVersionUpdate() throws UnknownHostException, InterruptedException
     {
         Util.createInitialRing(ss, partitioner, endpointTokens, keyTokens, hosts, hostIds, 2);
+        SchemaLoader.prepareServer();
+        SchemaLoader.createKeyspace("schema_test_ks",
+                                    KeyspaceParams.simple(1),
+                                    SchemaLoader.standardCFMD("schema_test_ks", "schema_test_cf"));
         MessagingService.instance().listen();
         Gossiper.instance.start(1);
         InetAddress remoteHostAddress = hosts.get(1);
@@ -120,10 +126,11 @@ public class GossiperTest
             Thread.sleep(1000);
         }
 
+        // schema is set and equals to "alternative" version
         assertTrue(schema != null);
         assertEquals(schema.value, Schema.instance.getAltVersion().toString());
 
-        // Upgrade remote host version
+        // Upgrade remote host version to the latest one (3.11)
         Gossiper.instance.injectApplicationState(remoteHostAddress, ApplicationState.RELEASE_VERSION, StorageService.instance.valueFactory.releaseVersion());
 
         Gossiper.instance.applyStateLocally(ImmutableMap.of(remoteHostAddress, initialRemoteState));
@@ -139,6 +146,7 @@ public class GossiperTest
             Thread.sleep(1000);
         }
 
+        // schema is changed and equals to real version
         assertFalse(schema.value.equals(newSchema.value));
         assertEquals(newSchema.value, Schema.instance.getRealVersion().toString());
     }
