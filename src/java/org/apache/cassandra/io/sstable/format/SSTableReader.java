@@ -75,6 +75,7 @@ import org.apache.cassandra.utils.*;
 import org.apache.cassandra.utils.concurrent.OpOrder;
 import org.apache.cassandra.utils.concurrent.Ref;
 import org.apache.cassandra.utils.concurrent.SelfRefCounted;
+import org.apache.cassandra.utils.BloomFilterSerializer;
 
 import static org.apache.cassandra.db.Directories.SECONDARY_INDEX_NAME_SEPARATOR;
 
@@ -742,7 +743,7 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
     {
         try (DataInputStream stream = new DataInputStream(new BufferedInputStream(Files.newInputStream(Paths.get(descriptor.filenameFor(Component.FILTER))))))
         {
-            bf = FilterFactory.deserialize(stream, oldBfFormat);
+            bf = BloomFilterSerializer.deserialize(stream, oldBfFormat);
         }
     }
 

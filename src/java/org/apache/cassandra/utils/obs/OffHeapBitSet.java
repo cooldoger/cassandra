@@ -22,6 +22,8 @@ import java.io.DataInputStream;
 import java.io.DataOutput;
 import java.io.IOException;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.io.util.DataOutputPlus;
 import org.apache.cassandra.io.util.Memory;
@@ -113,27 +115,27 @@ public class OffHeapBitSet implements IBitSet
         bytes.setMemory(0, bytes.size(), (byte) 0);
     }
 
-    public void serialize(DataOutputPlus out, boolean oldBfFormat) throws IOException
+    public void serialize(DataOutputPlus out) throws IOException
     {
         out.writeInt((int) (bytes.size() / 8));
-        if (oldBfFormat)
+        out.write(bytes, 0, bytes.size());
+    }
+
+    @VisibleForTesting
+    public void serializeOldBfFormat(DataOutputPlus out) throws IOException
+    {
+        out.writeInt((int) (bytes.size() / 8));
+        for (long i = 0; i < bytes.size(); )
         {
-            for (long i = 0; i < bytes.size(); )
-            {
-                long value = ((bytes.getByte(i++) & 0xff) << 0)
-                             + ((bytes.getByte(i++) & 0xff) << 8)
-                             + ((bytes.getByte(i++) & 0xff) << 16)
-                             + ((long) (bytes.getByte(i++) & 0xff) << 24)
-                             + ((long) (bytes.getByte(i++) & 0xff) << 32)
-                             + ((long) (bytes.getByte(i++) & 0xff) << 40)
-                             + ((long) (bytes.getByte(i++) & 0xff) << 48)
-                             + ((long) bytes.getByte(i++) << 56);
-                out.writeLong(value);
-            }
-        }
-        else
-        {
-            out.write(bytes, 0, bytes.size());
+            long value = ((bytes.getByte(i++) & 0xff) << 0)
+                         + ((bytes.getByte(i++) & 0xff) << 8)
+                         + ((bytes.getByte(i++) & 0xff) << 16)
+                         + ((long) (bytes.getByte(i++) & 0xff) << 24)
+                         + ((long) (bytes.getByte(i++) & 0xff) << 32)
+                         + ((long) (bytes.getByte(i++) & 0xff) << 40)
+                         + ((long) (bytes.getByte(i++) & 0xff) << 48)
+                         + ((long) bytes.getByte(i++) << 56);
+            out.writeLong(value);
         }
     }
 

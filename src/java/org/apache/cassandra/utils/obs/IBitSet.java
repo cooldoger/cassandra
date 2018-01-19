@@ -44,7 +44,7 @@ public interface IBitSet extends Closeable
      */
     public void clear(long index);
 
-    public void serialize(DataOutputPlus out, boolean oldBfFormat) throws IOException;
+    public void serialize(DataOutputPlus out) throws IOException;
 
     public long serializedSize();
 

@@ -25,11 +25,9 @@ import java.util.List;
 import java.util.Random;
 
 import com.google.common.collect.Lists;
+import org.apache.cassandra.io.util.DataOutputBuffer;
 import org.junit.Assert;
 import org.junit.Test;
-import org.junit.rules.ExpectedException;
-
-import org.apache.cassandra.io.util.DataOutputBuffer;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -55,7 +53,10 @@ public class OffHeapBitSetTest
                     bs.set(i);
 
             DataOutputBuffer out = new DataOutputBuffer();
-            bs.serialize(out, oldBfFormat);
+            if (oldBfFormat)
+                bs.serializeOldBfFormat(out);
+            else
+                bs.serialize(out);
 
             DataInputStream in = new DataInputStream(new ByteArrayInputStream(out.getData()));
             try (OffHeapBitSet newbs = OffHeapBitSet.deserialize(in, oldBfFormat))
