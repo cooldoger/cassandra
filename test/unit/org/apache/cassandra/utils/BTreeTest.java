@@ -500,4 +500,24 @@ public class BTreeTest
             Arrays.fill(numberOfCalls, 0);
         }
     };
+
+    @Test
+    public void testTransformAndFilter()
+    {
+        List<Integer> r = seq(100);
+
+        Object[] b1 = BTree.build(r, UpdateFunction.noOp());
+
+        // replace all values
+        Object[] b2 = BTree.transformAndFilter(b1, (x) -> (Integer) x * 2);
+        assertEquals(BTree.size(b1), BTree.size(b2));
+
+        // remove odd numbers
+        Object[] b3 = BTree.transformAndFilter(b1, (x) -> (Integer) x % 2 == 1 ? x : null);
+        assertEquals(BTree.size(b1) / 2, BTree.size(b3));
+
+        // remove all values
+        Object[] b4 = BTree.transformAndFilter(b1, (x) -> null);
+        assertEquals(0, BTree.size(b4));
+    }
 }

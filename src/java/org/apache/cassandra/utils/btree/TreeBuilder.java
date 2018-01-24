@@ -116,31 +116,7 @@ final class TreeBuilder
         Object[] r = current.toNode();
         current.clear();
 
-        builderRecycler.recycle(this, recycleHandle);
-
-        return r;
-    }
-
-    public <C, K extends C, V extends C> Object[] build(Iterable<K> source, UpdateFunction<K, V> updateF, int size)
-    {
-        assert updateF != null;
-
-        NodeBuilder current = rootBuilder;
-        // we descend only to avoid wasting memory; in update() we will often descend into existing trees
-        // so here we want to descend also, so we don't have lg max(N) depth in both directions
-        while ((size >>= FAN_SHIFT) > 0)
-            current = current.ensureChild();
-
-        current.reset(EMPTY_LEAF, POSITIVE_INFINITY, updateF, null);
-        for (K key : source)
-            current.addNewKey(key);
-
-        current = current.ascendToRoot();
-
-        Object[] r = current.toNode();
-        current.clear();
-
-        builderRecycler.recycle(this, recycleHandle);
+        recycleHandle.recycle(this);
 
         return r;
     }
