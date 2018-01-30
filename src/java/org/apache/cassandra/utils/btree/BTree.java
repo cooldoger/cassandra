@@ -21,6 +21,7 @@ package org.apache.cassandra.utils.btree;
 import java.util.*;
 import java.util.function.Consumer;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterators;
@@ -28,6 +29,7 @@ import com.google.common.collect.Ordering;
 
 import io.netty.util.Recycler;
 import org.apache.cassandra.utils.ObjectSizes;
+import org.openjdk.jmh.annotations.Param;
 
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Iterables.filter;
@@ -825,6 +827,13 @@ public class BTree
             this.values = new Object[16];
         }
 
+        @VisibleForTesting
+        public Builder()
+        {
+            this.recycleHandle = null;
+            this.values = new Object[16];
+        }
+
         private Builder(Builder<V> builder)
         {
             this.comparator = builder.comparator;
@@ -1111,6 +1120,14 @@ public class BTree
             {
                 this.recycle();
             }
+        }
+
+        @VisibleForTesting
+        public Object[] noRecycleBuild()
+        {
+            if (auto)
+                autoEnforce();
+            return BTree.build(Arrays.asList(values).subList(0, count), UpdateFunction.noOp());
         }
     }
 
