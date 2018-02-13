@@ -866,7 +866,10 @@ public class BTree
         private void cleanup()
         {
             quickResolver = null;
-            Arrays.fill(values, null);
+            if (count > 1024)
+                values = new Object[32];
+            else
+                Arrays.fill(values, null);
             count = 0;
             detected = true;
             auto = true;
