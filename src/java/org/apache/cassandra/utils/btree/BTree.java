@@ -829,6 +829,8 @@ public class BTree
         }
         protected Builder(Comparator<? super V> comparator, int initialCapacity)
         {
+            if (initialCapacity == 0)
+                initialCapacity = 16;
             this.comparator = comparator;
             this.values = new Object[initialCapacity];
         }
