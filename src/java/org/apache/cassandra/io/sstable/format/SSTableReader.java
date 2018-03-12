@@ -487,8 +487,10 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
         assert components.contains(Component.DATA) : "Data component is missing for sstable " + descriptor;
         assert !validate || components.contains(Component.PRIMARY_INDEX) : "Primary index component is missing for sstable " + descriptor;
 
-        // For the 3.0+ sstable format, the (misnomed) stats component hold the serialization header which we need to deserialize the sstable content
-        assert components.contains(Component.STATS) : "Stats component is missing for sstable " + descriptor;
+        if (!components.contains(Component.STATS))
+        {
+            throw new InvalidSSTableException();
+        }
 
         EnumSet<MetadataType> types = EnumSet.of(MetadataType.VALIDATION, MetadataType.STATS, MetadataType.HEADER);
 
@@ -582,6 +584,12 @@ public abstract class SSTableReader extends SSTable implements SelfRefCounted<SS
                     {
                         FileUtils.handleFSError(ex);
                         logger.error("Cannot read sstable {}; file system error, skipping table", entry, ex);
+                        return;
+                    }
+                    catch (InvalidSSTableException ex)
+                    {
+                        logger.error("Invaild sstable {}; deleting", entry, ex);
+                        SSTable.delete(entry.getKey(), SSTable.discoverComponentsFor(entry.getKey()));
                         return;
                     }
                     sstables.add(sstable);
