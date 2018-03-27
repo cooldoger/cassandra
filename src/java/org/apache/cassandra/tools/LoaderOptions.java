@@ -38,6 +38,7 @@ import org.apache.cassandra.tools.BulkLoader.CmdLineOptions;
 import com.datastax.driver.core.AuthProvider;
 import com.datastax.driver.core.PlainTextAuthProvider;
 import org.apache.commons.cli.*;
+import org.apache.commons.lang3.StringUtils;
 
 public class LoaderOptions
 {
@@ -516,6 +517,10 @@ public class LoaderOptions
                 if (cmd.hasOption(TARGET_KEYSPACE))
                 {
                     targetKeyspace = cmd.getOptionValue(TARGET_KEYSPACE);
+                    if (StringUtils.isBlank(targetKeyspace))
+                    {
+                        errorMsg("Empty keyspace is not supported.", options);
+                    }
                 }
                 return this;
             }
