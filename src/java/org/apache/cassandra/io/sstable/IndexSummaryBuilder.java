@@ -171,8 +171,16 @@ public class IndexSummaryBuilder implements AutoCloseable
             return;
 
         // take the lowest of the two, and stash it
+        // JJJ change
         lastReadableBoundary = byIndex.getValue().indexLength < byData.getValue().indexLength
                                ? byIndex.getValue() : byData.getValue();
+        if (byIndex.getValue().indexLength > byData.getValue().indexLength)
+        {
+            logger.info("JJJ90 index {}, data {}, index sync {}, data sync {}",
+                        byIndex.getValue().indexLength, byData.getValue().indexLength,
+                        indexSyncPosition, dataSyncPosition);
+        }
+       //lastReadableBoundary = byData.getValue();
 
         // clear our data prior to this, since we no longer need it
         lastReadableByData.headMap(lastReadableBoundary.dataLength, false).clear();

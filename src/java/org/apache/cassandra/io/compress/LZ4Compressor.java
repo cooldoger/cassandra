@@ -32,6 +32,7 @@ import org.apache.cassandra.schema.CompressionParams;
 public class LZ4Compressor implements ICompressor
 {
     private static final int INTEGER_BYTES = 4;
+    private static final int TEST_BYTES = 1000;
 
     @VisibleForTesting
     public static final LZ4Compressor instance = new LZ4Compressor();
@@ -53,7 +54,7 @@ public class LZ4Compressor implements ICompressor
 
     public int initialCompressedBufferLength(int chunkLength)
     {
-        return INTEGER_BYTES + compressor.maxCompressedLength(chunkLength);
+        return INTEGER_BYTES + TEST_BYTES + compressor.maxCompressedLength(chunkLength);
     }
 
     public void compress(ByteBuffer input, ByteBuffer output) throws IOException
@@ -63,6 +64,11 @@ public class LZ4Compressor implements ICompressor
         output.put((byte) (len >>> 8));
         output.put((byte) (len >>> 16));
         output.put((byte) (len >>> 24));
+
+        for (int i = 0; i < TEST_BYTES; i++)
+        {
+            output.put((byte) 0);
+        }
 
         try
         {
@@ -85,7 +91,7 @@ public class LZ4Compressor implements ICompressor
         final int compressedLength;
         try
         {
-            compressedLength = decompressor.decompress(input, inputOffset + INTEGER_BYTES,
+            compressedLength = decompressor.decompress(input, inputOffset + INTEGER_BYTES + TEST_BYTES,
                                                        output, outputOffset, decompressedLength);
         }
         catch (LZ4Exception e)
@@ -93,7 +99,7 @@ public class LZ4Compressor implements ICompressor
             throw new IOException(e);
         }
 
-        if (compressedLength != inputLength - INTEGER_BYTES)
+        if (compressedLength != inputLength - (INTEGER_BYTES + TEST_BYTES))
         {
             throw new IOException("Compressed lengths mismatch");
         }
@@ -107,6 +113,11 @@ public class LZ4Compressor implements ICompressor
                 | ((input.get() & 0xFF) << 8)
                 | ((input.get() & 0xFF) << 16)
                 | ((input.get() & 0xFF) << 24);
+
+        for (int i = 0; i < TEST_BYTES; i++)
+        {
+            input.get();
+        }
 
         try
         {

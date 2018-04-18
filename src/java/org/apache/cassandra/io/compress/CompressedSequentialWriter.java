@@ -27,6 +27,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.util.zip.CRC32;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.io.FSReadError;
 import org.apache.cassandra.io.FSWriteError;
 import org.apache.cassandra.io.sstable.CorruptSSTableException;
@@ -39,6 +42,8 @@ import org.apache.cassandra.schema.CompressionParams;
 
 public class CompressedSequentialWriter extends SequentialWriter
 {
+    private static final Logger logger = LoggerFactory.getLogger(CompressedSequentialWriter.class);
+
     private final DataIntegrityMetadata.ChecksumWriter crcMetadata;
 
     // holds offset in the file where current chunk should be written
@@ -116,7 +121,8 @@ public class CompressedSequentialWriter extends SequentialWriter
         }
 
         int compressedLength = compressed.position();
-        uncompressedSize += buffer.position();
+        int dataLength = buffer.position();
+        uncompressedSize += dataLength;
         compressedSize += compressedLength;
 
         try
@@ -132,6 +138,8 @@ public class CompressedSequentialWriter extends SequentialWriter
             // write corresponding checksum
             compressed.rewind();
             crcMetadata.appendDirect(compressed, true);
+
+            // JJJ should change to dataLength
             lastFlushOffset += compressedLength + 4;
         }
         catch (IOException e)

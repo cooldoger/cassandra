@@ -39,6 +39,9 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Throwables;
 import com.google.common.primitives.Longs;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.apache.cassandra.db.TypeSizes;
 import org.apache.cassandra.exceptions.ConfigurationException;
 import org.apache.cassandra.io.FSReadError;
@@ -58,6 +61,8 @@ import org.apache.cassandra.utils.Pair;
 import org.apache.cassandra.utils.concurrent.Transactional;
 import org.apache.cassandra.utils.concurrent.Ref;
 
+import static java.lang.Math.toIntExact;
+
 /**
  * Holds metadata about compressed file
  */
@@ -73,6 +78,8 @@ public class CompressionMetadata
     public final String indexFilePath;
     public final CompressionParams parameters;
     public final ChecksumType checksumType;
+
+    private static final Logger logger = LoggerFactory.getLogger(CompressionMetadata.class);
 
     /**
      * Create metadata about given compressed file including uncompressed data length, chunk size
@@ -195,10 +202,14 @@ public class CompressionMetadata
         int i = 0;
         try
         {
-
             for (i = 0; i < chunkCount; i++)
             {
-                offsets.setLong(i * 8L, input.readLong());
+                long offset = input.readLong();
+                if (i != 0 && offset == 0)
+                {
+                    logger.info("JJJ4: reading empty offset: count: {}, idx {}, indexFilePath {}, ", chunkCount, i, indexFilePath);
+                }
+                offsets.setLong(i * 8L, offset);
             }
 
             return offsets;
@@ -237,7 +248,18 @@ public class CompressionMetadata
                                 ? compressedFileLength
                                 : chunkOffsets.getLong(idx + 8);
 
-        return new Chunk(chunkOffset, (int) (nextChunkOffset - chunkOffset - 4)); // "4" bytes reserved for checksum
+        long length = nextChunkOffset - chunkOffset - 4;
+        if (length < 0)
+        {
+            logger.info("JJJ12: length {}, nextOffset {}, thisOffset {}, idx {}, offsetsSize {}, fileLength {}",
+                        length, nextChunkOffset, chunkOffset, idx, chunkOffsetsSize, compressedFileLength);
+        }
+        if ((int)length != length)
+        {
+            logger.info("JJJ22: length {}, nextOffset {}, thisOffset {}, idx {}, offsetsSize {}, fileLength {}",
+                        length, nextChunkOffset, chunkOffset, idx, chunkOffsetsSize, compressedFileLength);
+        }
+        return new Chunk(chunkOffset, toIntExact(nextChunkOffset - chunkOffset - 4)); // "4" bytes reserved for checksum
     }
 
     /**
@@ -338,6 +360,10 @@ public class CompressionMetadata
                 offsets.close();
                 offsets = newOffsets;
             }
+            if (count != 0 && offset == 0)
+            {
+                logger.info("JJJ5 count {}, filePath {}", count, filePath);
+            }
             offsets.setLong(8L * count++, offset);
         }
 
@@ -392,7 +418,14 @@ public class CompressionMetadata
             {
                 writeHeader(out, dataLength, count);
                 for (int i = 0; i < count; i++)
-                    out.writeLong(offsets.getLong(i * 8L));
+                {
+                    long offset = offsets.getLong(i * 8L);
+                    if (i != 0 && offset == 0)
+                    {
+                        logger.info("JJJ3: writing empty offset. count: {}, dataLength {}, idx {}, filePath {}, ", count, dataLength, i, filePath);
+                    }
+                    out.writeLong(offset);
+                }
 
                 out.flush();
                 fos.getFD().sync();
@@ -403,6 +436,9 @@ public class CompressionMetadata
             }
         }
 
+        /**
+         * JJJ problem
+         */
         @SuppressWarnings("resource")
         public CompressionMetadata open(long dataLength, long compressedLength)
         {
