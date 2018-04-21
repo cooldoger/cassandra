@@ -132,7 +132,7 @@ public class CompressedSequentialWriter extends SequentialWriter
             // write corresponding checksum
             compressed.rewind();
             crcMetadata.appendDirect(compressed, true);
-            lastFlushOffset += compressedLength + 4;
+            lastFlushOffset = uncompressedSize;
         }
         catch (IOException e)
         {

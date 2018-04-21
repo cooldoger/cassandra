@@ -26,6 +26,7 @@ import java.util.*;
 
 import static org.apache.commons.io.FileUtils.readFileToByteArray;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import org.junit.After;
 import org.junit.Test;
@@ -111,6 +112,12 @@ public class CompressedSequentialWriterTest extends SequentialWriterTest
                 {
                     writer.write((byte)i);
                 }
+
+                if (bytesToTest <= CompressionParams.DEFAULT_CHUNK_LENGTH)
+                    assertEquals(writer.getLastFlushOffset(), CompressionParams.DEFAULT_CHUNK_LENGTH);
+                else
+                    assertTrue(writer.getLastFlushOffset() % CompressionParams.DEFAULT_CHUNK_LENGTH == 0);
+
                 writer.resetAndTruncate(mark);
                 writer.write(dataPost);
                 writer.finish();
