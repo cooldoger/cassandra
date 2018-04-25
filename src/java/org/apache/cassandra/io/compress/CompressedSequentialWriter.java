@@ -236,8 +236,21 @@ public class CompressedSequentialWriter extends SequentialWriter
         chunkCount = realMark.nextChunkIndex - 1;
 
         // truncate data and index file
-        truncate(chunkOffset);
+        truncate(chunkOffset, bufferOffset);
         metadataWriter.resetAndTruncate(realMark.nextChunkIndex - 1);
+    }
+
+    private void truncate(long toFileSize, long toBufferOffset)
+    {
+        try
+        {
+            fchannel.truncate(toFileSize);
+            lastFlushOffset = toBufferOffset;
+        }
+        catch (IOException e)
+        {
+            throw new FSWriteError(e, getPath());
+        }
     }
 
     /**
