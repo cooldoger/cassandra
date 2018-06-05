@@ -164,7 +164,7 @@ public class CassandraNetworkAuthorizerTest
     private static ClientState getClientState()
     {
         ClientState state = ClientState.forInternalCalls();
-        state.login(new AuthenticatedUser(CassandraRoleManager.DEFAULT_SUPERUSER_NAME));
+        state.login(new AuthenticatedUser(CassandraRoleManager.DEFAULT_SUPERUSER_NAME, true));
         return state;
     }
 
@@ -180,7 +180,7 @@ public class CassandraNetworkAuthorizerTest
 
     private static DCPermissions dcPerms(String username)
     {
-        AuthenticatedUser user = new AuthenticatedUser(username);
+        AuthenticatedUser user = new AuthenticatedUser(username, true);
         return DatabaseDescriptor.getNetworkAuthorizer().authorize(user.getPrimaryRole());
     }
 

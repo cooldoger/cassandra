@@ -33,10 +33,10 @@ import org.apache.cassandra.dht.Datacenters;
 public class AuthenticatedUser
 {
     public static final String SYSTEM_USERNAME = "system";
-    public static final AuthenticatedUser SYSTEM_USER = new AuthenticatedUser(SYSTEM_USERNAME);
+    public static final AuthenticatedUser SYSTEM_USER = new AuthenticatedUser(SYSTEM_USERNAME, false);
 
     public static final String ANONYMOUS_USERNAME = "anonymous";
-    public static final AuthenticatedUser ANONYMOUS_USER = new AuthenticatedUser(ANONYMOUS_USERNAME);
+    public static final AuthenticatedUser ANONYMOUS_USER = new AuthenticatedUser(ANONYMOUS_USERNAME, true);
 
     // User-level permissions cache.
     private static final PermissionsCache permissionsCache = new PermissionsCache(DatabaseDescriptor.getAuthorizer());
@@ -45,11 +45,13 @@ public class AuthenticatedUser
     private final String name;
     // primary Role of the logged in user
     private final RoleResource role;
+    private final boolean canLogin;
 
-    public AuthenticatedUser(String name)
+    public AuthenticatedUser(String name, boolean canLogin)
     {
         this.name = name;
         this.role = RoleResource.role(name);
+        this.canLogin = canLogin;
     }
 
     public String getName()
@@ -73,6 +75,10 @@ public class AuthenticatedUser
         return !isAnonymous() && Roles.hasSuperuserStatus(role);
     }
 
+    public boolean canLogin()
+    {
+        return canLogin;
+    }
     /**
      * If IAuthenticator doesn't require authentication, this method may return true.
      */

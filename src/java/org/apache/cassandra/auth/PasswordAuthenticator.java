@@ -60,6 +60,8 @@ public class PasswordAuthenticator implements IAuthenticator
     // name of the hash column.
     private static final String SALTED_HASH = "salted_hash";
 
+    private static final String CAN_LOGIN = "can_login";
+
     // really this is a rolename now, but as it only matters for Thrift, we leave it for backwards compatibility
     public static final String USERNAME_KEY = "username";
     public static final String PASSWORD_KEY = "password";
@@ -91,20 +93,21 @@ public class PasswordAuthenticator implements IAuthenticator
 
     private AuthenticatedUser authenticate(String username, String password) throws AuthenticationException
     {
-        String hash = cache.get(username);
-        if (!checkpw(password, hash))
+        RoleInfo roleInfo = cache.get(username);
+        if (!checkpw(password, roleInfo.hasdedPassword))
             throw new AuthenticationException(String.format("Provided username %s and/or password are incorrect", username));
 
-        return new AuthenticatedUser(username);
+        return new AuthenticatedUser(username, roleInfo.canLogin);
     }
 
-    private String queryHashedPassword(String username)
+    private RoleInfo queryRoleInfo(String username)
     {
+        logger.trace("Querying Role information");
         ResultMessage.Rows rows =
         authenticateStatement.execute(QueryState.forInternalCalls(),
-                                        QueryOptions.forInternalCalls(consistencyForRole(username),
-                                                                      Lists.newArrayList(ByteBufferUtil.bytes(username))),
-                                        System.nanoTime());
+                                      QueryOptions.forInternalCalls(consistencyForRole(username),
+                                                                    Lists.newArrayList(ByteBufferUtil.bytes(username))),
+                                      System.nanoTime());
 
         // If either a non-existent role name was supplied, or no credentials
         // were found for that role we don't want to cache the result so we throw
@@ -116,7 +119,7 @@ public class PasswordAuthenticator implements IAuthenticator
         if (!result.one().has(SALTED_HASH))
             throw new AuthenticationException(String.format("Provided username %s and/or password are incorrect", username));
 
-        return result.one().getString(SALTED_HASH);
+        return new RoleInfo(result.one().getString(SALTED_HASH), result.one().getBoolean(CAN_LOGIN));
     }
 
     public Set<DataResource> protectedResources()
@@ -131,8 +134,9 @@ public class PasswordAuthenticator implements IAuthenticator
 
     public void setup()
     {
-        String query = String.format("SELECT %s FROM %s.%s WHERE role = ?",
+        String query = String.format("SELECT %s, %s FROM %s.%s WHERE role = ?",
                                      SALTED_HASH,
+                                     CAN_LOGIN,
                                      SchemaConstants.AUTH_KEYSPACE_NAME,
                                      AuthKeyspace.ROLES);
         authenticateStatement = prepare(query);
@@ -228,7 +232,19 @@ public class PasswordAuthenticator implements IAuthenticator
         }
     }
 
-    private static class CredentialsCache extends AuthCache<String, String> implements CredentialsCacheMBean
+    private static class RoleInfo
+    {
+        public final String hasdedPassword;
+        public final boolean canLogin;
+
+        private RoleInfo(String hasdedPassword, boolean canLogin)
+        {
+            this.hasdedPassword = hasdedPassword;
+            this.canLogin = canLogin;
+        }
+    }
+
+    private static class CredentialsCache extends AuthCache<String, RoleInfo> implements CredentialsCacheMBean
     {
         private CredentialsCache(PasswordAuthenticator authenticator)
         {
@@ -239,7 +255,7 @@ public class PasswordAuthenticator implements IAuthenticator
                   DatabaseDescriptor::getCredentialsUpdateInterval,
                   DatabaseDescriptor::setCredentialsCacheMaxEntries,
                   DatabaseDescriptor::getCredentialsCacheMaxEntries,
-                  authenticator::queryHashedPassword,
+                  authenticator::queryRoleInfo,
                   () -> true);
         }
 

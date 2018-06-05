@@ -557,7 +557,7 @@ public class UFAuthTest extends CQLTester
             role = RoleResource.role(roleName);
             // use reflection to set the logged in user so that we don't need to
             // bother setting up an IRoleManager
-            user = new AuthenticatedUser(roleName);
+            user = new AuthenticatedUser(roleName, true);
             clientState = ClientState.forInternalCalls();
             Field userField = ClientState.class.getDeclaredField("user");
             userField.setAccessible(true);
