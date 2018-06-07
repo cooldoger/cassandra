@@ -49,6 +49,8 @@ public class BlacklistingCompactionsTest
     private static final String KEYSPACE1 = "BlacklistingCompactionsTest";
     private static final String CF_STANDARD1 = "Standard1";
 
+    int pos = Integer.parseInt(System.getProperty("Test.BadPos"));
+
     @After
     public void leakDetect() throws InterruptedException
     {
@@ -142,7 +144,7 @@ public class BlacklistingCompactionsTest
                 raf = new RandomAccessFile(sstable.getFilename(), "rw");
                 assertNotNull(raf);
                 assertTrue(raf.length() > 20);
-                raf.seek(new Random().nextInt((int)(raf.length() - 20)));
+                raf.seek(pos);
                 // We want to write something large enough that the corruption cannot get undetected
                 // (even without compression)
                 byte[] corruption = new byte[20];
