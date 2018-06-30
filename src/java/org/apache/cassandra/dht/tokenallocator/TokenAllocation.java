@@ -53,6 +53,10 @@ public class TokenAllocation
     {
         TokenMetadata tokenMetadataCopy = tokenMetadata.cloneOnlyTokenMap();
         StrategyAdapter strategy = getStrategy(tokenMetadataCopy, rs, endpoint);
+
+        if (strategy.replicas() == 0)
+            throw new ConfigurationException("allocate_tokens_for_keyspace has 0 replication number in allocation DC.");
+
         Collection<Token> tokens = create(tokenMetadata, strategy).addUnit(endpoint, numTokens);
         tokens = adjustForCrossDatacenterClashes(tokenMetadata, strategy, tokens);
 
@@ -206,7 +210,7 @@ public class TokenAllocation
                 @Override
                 public int replicas()
                 {
-                    return 1;
+                    return replicas;
                 }
 
                 @Override

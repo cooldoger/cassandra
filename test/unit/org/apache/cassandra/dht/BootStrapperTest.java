@@ -40,6 +40,7 @@ import org.junit.runner.RunWith;
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.locator.AbstractNetworkTopologySnitch;
 import org.apache.cassandra.locator.InetAddressAndPort;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.db.Keyspace;
@@ -155,7 +156,7 @@ public class BootStrapperTest
             List<Token> tokens = Lists.newArrayListWithCapacity(numVNodes);
             for (int j = 0; j < numVNodes; ++j)
                 tokens.add(p.getRandomToken());
-            
+
             tmd.updateNormalTokens(tokens, addr);
         }
     }
@@ -169,6 +170,32 @@ public class BootStrapperTest
         generateFakeEndpoints(tm, 10, vn);
         InetAddressAndPort addr = FBUtilities.getBroadcastAddressAndPort();
         allocateTokensForNode(vn, ks, tm, addr);
+    }
+
+    @Test(expected = ConfigurationException.class)
+    public void testAllocateTokensNetworkStrategyNoReplica() throws UnknownHostException
+    {
+        IEndpointSnitch oldSnitch = DatabaseDescriptor.getEndpointSnitch();
+        try
+        {
+            int vn = 16;
+            String ks = "BootStrapperTestNTSNRKeyspace";
+            DatabaseDescriptor.setEndpointSnitch(new RackInferringSnitch());
+
+            // Register peers with expected DC for NetworkTopologyStrategy.
+            TokenMetadata metadata = StorageService.instance.getTokenMetadata();
+            metadata.clearUnsafe();
+            metadata.updateHostId(UUID.randomUUID(), InetAddressAndPort.getByName("127.1.0.99"));
+
+            SchemaLoader.createKeyspace(ks, KeyspaceParams.nts("1", 3), SchemaLoader.standardCFMD(ks, "Standard1"));
+
+            TokenMetadata tm = new TokenMetadata();
+            generateFakeEndpoints(tm, 1, vn);
+            InetAddressAndPort addr = FBUtilities.getBroadcastAddressAndPort();
+            allocateTokensForNode(vn, ks, tm, addr);
+        } finally {
+            DatabaseDescriptor.setEndpointSnitch(oldSnitch);
+        }
     }
 
     public void testAllocateTokensNetworkStrategy(int rackCount, int replicas) throws UnknownHostException
