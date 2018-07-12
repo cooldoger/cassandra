@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import com.google.common.collect.Lists;
 
@@ -39,8 +40,13 @@ import org.junit.runner.RunWith;
 
 import org.apache.cassandra.OrderedJUnit4ClassRunner;
 import org.apache.cassandra.SchemaLoader;
+import org.apache.cassandra.Util;
 import org.apache.cassandra.config.DatabaseDescriptor;
+import org.apache.cassandra.db.DecoratedKey;
+import org.apache.cassandra.locator.AbstractReplicationStrategy;
 import org.apache.cassandra.locator.InetAddressAndPort;
+import org.apache.cassandra.locator.SimpleSnitch;
+import org.apache.cassandra.schema.KeyspaceMetadata;
 import org.apache.cassandra.schema.Schema;
 import org.apache.cassandra.db.Keyspace;
 import org.apache.cassandra.dht.tokenallocator.TokenAllocation;
@@ -169,6 +175,68 @@ public class BootStrapperTest
         generateFakeEndpoints(tm, 10, vn);
         InetAddressAndPort addr = FBUtilities.getBroadcastAddressAndPort();
         allocateTokensForNode(vn, ks, tm, addr);
+    }
+
+    private AbstractReplicationStrategy getStrategy(String keyspaceName, TokenMetadata tmd)
+    {
+        KeyspaceMetadata ksmd = Schema.instance.getKeyspaceMetadata(keyspaceName);
+        return AbstractReplicationStrategy.createReplicationStrategy(
+        keyspaceName,
+        ksmd.params.replication.klass,
+        tmd,
+        new SimpleSnitch(),
+        ksmd.params.replication.options);
+    }
+
+    private double caculateFailedRate(int nodeNum, int vNodeNum, int badNodeNum, int replicationFactor, int requiredReplicas) throws UnknownHostException
+    {
+        double goodCount = 0;
+        int totalCount = 2 << 20; // 2m
+
+        String ksName = "BootStrapperTest";
+        switch(replicationFactor)
+        {
+            case 1:
+                ksName += "Keyspace2";
+                break;
+            case 2:
+                ksName += "Keyspace5";
+                break;
+            case 3:
+                ksName += "Keyspace4";
+                break;
+            case 5:
+                ksName += "Keyspace3";
+                break;
+            default:
+                throw new RuntimeException("not supported replication factor");
+        }
+
+        TokenMetadata tm = new TokenMetadata();
+        generateFakeEndpoints(tm, nodeNum, vNodeNum);
+        List<InetAddressAndPort> badNodes = tm.getTopology().getDatacenterEndpoints().values().stream().limit(badNodeNum).collect(Collectors.toList());
+
+        AbstractReplicationStrategy rs = getStrategy(ksName, tm);
+
+        for (int i = 0; i < totalCount; i++)
+        {
+            DecoratedKey key = Util.dk(UUID.randomUUID().toString());
+            Token tk = key.getToken();
+
+            long badCount = rs.getNaturalEndpoints(tk).stream().filter(x -> badNodes.stream().anyMatch(y -> y == x)).count();
+            if (rs.getReplicationFactor() - badCount >= requiredReplicas)
+                goodCount++;
+        }
+
+        return goodCount / totalCount;
+    }
+
+    @Test
+    public void testFailedNodeRate() throws Exception
+    {
+        double res = caculateFailedRate(70, 256, 2, 3, 2);
+
+        System.out.println("==== Available data: " + res * 100 + " %");
     }
 
     public void testAllocateTokensNetworkStrategy(int rackCount, int replicas) throws UnknownHostException
