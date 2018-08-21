@@ -33,6 +33,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -61,6 +62,10 @@ public class LongBTreeTest
     private static int perThreadTrees = 10000;
     private static int minTreeSize = 4;
     private static int maxTreeSize = 10000;
+    private static float generateTreeByUpdateChance = 0.8f;
+    private static float generateTreeByCopyChance = 0.1f;
+    private static float generateTreeByBuilderChance = 0.1f;
+    private static float generateTreeTotalChance = generateTreeByUpdateChance + generateTreeByCopyChance + generateTreeByBuilderChance;
     private static int threads = DEBUG ? 1 : Runtime.getRuntime().availableProcessors() * 8;
     private static final MetricRegistry metrics = new MetricRegistry();
     private static final Timer BTREE_TIMER = metrics.timer(MetricRegistry.name(BTree.class, "BTREE"));
@@ -287,29 +292,29 @@ public class LongBTreeTest
         final long totalCount = threads * perThreadTrees * perTreeSelections;
         for (int t = 0 ; t < threads ; t++)
         {
-            Runnable runnable = new Runnable()
+            Runnable runnable = () ->
             {
-                public void run()
+                try
                 {
-                    try
+                    for (int i = 0 ; i < perThreadTrees ; i++)
                     {
-                        for (int i = 0 ; i < perThreadTrees ; i++)
+                        // not easy to usefully log seed, as run tests in parallel; need to really pass through to exceptions
+                        long seed = ThreadLocalRandom.current().nextLong();
+                        Random random = new Random(seed);
+                        RandomTree tree = randomTree(minTreeSize, maxTreeSize, random);
+                        for (int j = 0 ; j < perTreeSelections ; j++)
                         {
-                            RandomTree tree = randomTree(minTreeSize, maxTreeSize);
-                            for (int j = 0 ; j < perTreeSelections ; j++)
-                            {
-                                testRun.accept(tree.select(narrow, mixInNotPresentItems, permitReversal));
-                                count.incrementAndGet();
-                            }
+                            testRun.accept(tree.select(narrow, mixInNotPresentItems, permitReversal));
+                            count.incrementAndGet();
                         }
                     }
-                    catch (Throwable t)
-                    {
-                        errors.incrementAndGet();
-                        t.printStackTrace();
-                    }
-                    latch.countDown();
                 }
+                catch (Throwable t1)
+                {
+                    errors.incrementAndGet();
+                    t1.printStackTrace();
+                }
+                latch.countDown();
             };
             MODIFY.execute(runnable);
         }
@@ -347,18 +352,19 @@ public class LongBTreeTest
 
     private static class RandomTree
     {
+        final Random random;
         final NavigableSet<Integer> canonical;
         final BTreeSet<Integer> test;
 
-        private RandomTree(NavigableSet<Integer> canonical, BTreeSet<Integer> test)
+        private RandomTree(NavigableSet<Integer> canonical, BTreeSet<Integer> test, Random random)
         {
             this.canonical = canonical;
             this.test = test;
+            this.random = random;
         }
 
         RandomSelection select(boolean narrow, boolean mixInNotPresentItems, boolean permitReversal)
         {
-            ThreadLocalRandom random = ThreadLocalRandom.current();
             NavigableSet<Integer> canonicalSet = this.canonical;
             BTreeSet<Integer> testAsSet = this.test;
             List<Integer> canonicalList = new ArrayList<>(canonicalSet);
@@ -368,7 +374,7 @@ public class LongBTreeTest
             Assert.assertEquals(canonicalList.size(), testAsList.size());
 
             // sometimes select keys first, so we cover full range
-            List<Integer> allKeys = randomKeys(canonical, mixInNotPresentItems);
+            List<Integer> allKeys = randomKeys(canonical, mixInNotPresentItems, random);
             List<Integer> keys = allKeys;
 
             int narrowCount = random.nextInt(3);
@@ -391,7 +397,7 @@ public class LongBTreeTest
 
                 if (useLb)
                 {
-                    lbKeyIndex = random.nextInt(0, indexRange - 1);
+                    lbKeyIndex = random.nextInt(indexRange - 1);
                     Integer candidate = keys.get(lbKeyIndex);
                     if (useLb = (candidate > lbKey && candidate <= ubKey))
                     {
@@ -404,7 +410,8 @@ public class LongBTreeTest
                 }
                 if (useUb)
                 {
-                    ubKeyIndex = random.nextInt(Math.max(lbKeyIndex, keys.size() - indexRange), keys.size() - 1);
+                    int lb = Math.max(lbKeyIndex, keys.size() - indexRange);
+                    ubKeyIndex = random.nextInt(keys.size() - (1 + lb)) + lb;
                     Integer candidate = keys.get(ubKeyIndex);
                     if (useUb = (candidate < ubKey && candidate >= lbKey))
                     {
@@ -468,31 +475,53 @@ public class LongBTreeTest
         }
     }
 
-    private static RandomTree randomTree(int minSize, int maxSize)
+    private static RandomTree randomTree(int minSize, int maxSize, Random random)
     {
         // perform most of our tree constructions via update, as this is more efficient; since every run uses this
         // we test builder disproportionately more often than if it had its own test anyway
-        return ThreadLocalRandom.current().nextFloat() < 0.95 ? randomTreeByUpdate(minSize, maxSize)
-                                                              : randomTreeByBuilder(minSize, maxSize);
+        int maxIntegerValue = random.nextInt(Integer.MAX_VALUE - 1) + 1;
+        float f = random.nextFloat() / generateTreeTotalChance;
+        f -= generateTreeByUpdateChance;
+        if (f < 0)
+            return randomTreeByUpdate(minSize, maxSize, maxIntegerValue, random);
+        f -= generateTreeByCopyChance;
+        if (f < 0)
+            return randomTreeByCopy(minSize, maxSize, maxIntegerValue, random);
+        return randomTreeByBuilder(minSize, maxSize, maxIntegerValue, random);
     }
 
-    private static RandomTree randomTreeByUpdate(int minSize, int maxSize)
+    private static RandomTree randomTreeByCopy(int minSize, int maxSize, int maxIntegerValue, Random random)
     {
         assert minSize > 3;
         TreeSet<Integer> canonical = new TreeSet<>();
 
-        ThreadLocalRandom random = ThreadLocalRandom.current();
-        int targetSize = random.nextInt(minSize, maxSize);
-        int maxModificationSize = random.nextInt(2, targetSize);
+        int targetSize = random.nextInt(maxSize - minSize) + minSize;
+        int curSize = 0;
+        while (curSize < targetSize)
+        {
+            Integer next = random.nextInt(maxIntegerValue);
+            if (canonical.add(next))
+                ++curSize;
+        }
+        return new RandomTree(canonical, BTreeSet.<Integer>wrap(BTree.build(canonical, UpdateFunction.noOp()), naturalOrder()), random);
+    }
+
+    private static RandomTree randomTreeByUpdate(int minSize, int maxSize, int maxIntegerValue, Random random)
+    {
+        assert minSize > 3;
+        TreeSet<Integer> canonical = new TreeSet<>();
+
+        int targetSize = random.nextInt(maxSize - minSize) + minSize;
+        int maxModificationSize = random.nextInt(targetSize - 2) + 2;
         Object[] accmumulate = BTree.empty();
         int curSize = 0;
         while (curSize < targetSize)
         {
-            int nextSize = maxModificationSize == 1 ? 1 : random.nextInt(1, maxModificationSize);
+            int nextSize = maxModificationSize == 1 ? 1 : random.nextInt(maxModificationSize - 1) + 1;
             TreeSet<Integer> build = new TreeSet<>();
             for (int i = 0 ; i < nextSize ; i++)
             {
-                Integer next = random.nextInt();
+                Integer next = random.nextInt(maxIntegerValue);
                 build.add(next);
                 canonical.add(next);
             }
@@ -500,16 +529,15 @@ public class LongBTreeTest
             curSize += nextSize;
             maxModificationSize = Math.min(maxModificationSize, targetSize - curSize);
         }
-        return new RandomTree(canonical, BTreeSet.<Integer>wrap(accmumulate, naturalOrder()));
+        return new RandomTree(canonical, BTreeSet.<Integer>wrap(accmumulate, naturalOrder()), random);
     }
 
-    private static RandomTree randomTreeByBuilder(int minSize, int maxSize)
+    private static RandomTree randomTreeByBuilder(int minSize, int maxSize, int maxIntegerValue, Random random)
     {
         assert minSize > 3;
-        ThreadLocalRandom random = ThreadLocalRandom.current();
         BTree.Builder<Integer> builder = BTree.builder(naturalOrder());
 
-        int targetSize = random.nextInt(minSize, maxSize);
+        int targetSize = random.nextInt(maxSize - minSize) + minSize;
         int maxModificationSize = (int) Math.sqrt(targetSize);
 
         TreeSet<Integer> canonical = new TreeSet<>();
@@ -519,7 +547,7 @@ public class LongBTreeTest
         List<Integer> shuffled = new ArrayList<>();
         while (curSize < targetSize)
         {
-            int nextSize = maxModificationSize <= 1 ? 1 : random.nextInt(1, maxModificationSize);
+            int nextSize = maxModificationSize <= 1 ? 1 : random.nextInt(maxModificationSize - 1) + 1;
 
             // leave a random selection of previous values
             (random.nextBoolean() ? ordered.headSet(random.nextInt()) : ordered.tailSet(random.nextInt())).clear();
@@ -527,7 +555,7 @@ public class LongBTreeTest
 
             for (int i = 0 ; i < nextSize ; i++)
             {
-                Integer next = random.nextInt();
+                Integer next = random.nextInt(maxIntegerValue);
                 ordered.add(next);
                 shuffled.add(next);
                 canonical.add(next);
@@ -558,16 +586,15 @@ public class LongBTreeTest
 
         BTreeSet<Integer> btree = BTreeSet.<Integer>wrap(builder.build(), naturalOrder());
         Assert.assertEquals(canonical.size(), btree.size());
-        return new RandomTree(canonical, btree);
+        return new RandomTree(canonical, btree, random);
     }
 
     // select a random subset of the keys, with an optional random population of keys inbetween those that are present
     // return a value with the search position
-    private static List<Integer> randomKeys(Iterable<Integer> canonical, boolean mixInNotPresentItems)
+    private static List<Integer> randomKeys(Iterable<Integer> canonical, boolean mixInNotPresentItems, Random random)
     {
-        ThreadLocalRandom rnd = ThreadLocalRandom.current();
-        boolean useFake = mixInNotPresentItems && rnd.nextBoolean();
-        final float fakeRatio = rnd.nextFloat();
+        boolean useFake = mixInNotPresentItems && random.nextBoolean();
+        final float fakeRatio = random.nextFloat();
         List<Integer> results = new ArrayList<>();
         Long fakeLb = (long) Integer.MIN_VALUE, fakeUb = null;
         Integer max = null;
@@ -575,7 +602,7 @@ public class LongBTreeTest
         {
             if (    !useFake
                 ||  (fakeUb == null ? v - 1 : fakeUb) <= fakeLb + 1
-                ||  rnd.nextFloat() < fakeRatio)
+                ||  random.nextFloat() < fakeRatio)
             {
                 // if we cannot safely construct a fake value, or our randomizer says not to, we emit the next real value
                 results.add(v);
@@ -597,8 +624,8 @@ public class LongBTreeTest
         }
         if (useFake && max != null && max < Integer.MAX_VALUE)
             results.add(max + 1);
-        final float useChance = rnd.nextFloat();
-        return Lists.newArrayList(filter(results, (x) -> rnd.nextFloat() < useChance));
+        final float useChance = random.nextFloat();
+        return Lists.newArrayList(filter(results, (x) -> random.nextFloat() < useChance));
     }
 
     /************************** TEST MUTATION ********************************************/
