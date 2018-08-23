@@ -58,36 +58,40 @@ public class BTree
 
     // The maximum fan factor used for B-Trees
     static final int FAN_SHIFT;
-    // The maximum tree depth
-    static final int MAX_DEPTH = 20; // When fanfator is minimal 2, the highest btree it builds is 20
+
     // The maximun tree size for certain heigth of tree
-    static final int[] TREE_SIZE = new int[MAX_DEPTH];
+    static final int[] TREE_SIZE;
 
     // NB we encode Path indexes as Bytes, so this needs to be less than Byte.MAX_VALUE / 2
     static final int FAN_FACTOR;
+
+    static final int MAX_TREE_SIZE = Integer.MAX_VALUE;
+
     static
     {
-        int fanfactor = 32;
-        if (System.getProperty("cassandra.btree.fanfactor") != null)
-            fanfactor = Integer.parseInt(System.getProperty("cassandra.btree.fanfactor"));
+        int fanfactor = Integer.parseInt(System.getProperty("cassandra.btree.fanfactor", "32"));
         assert fanfactor >= 2 : "the minimal btree fanfactor is 2";
         int shift = 1;
         while (1 << shift < fanfactor)
             shift += 1;
+
         FAN_SHIFT = shift;
         FAN_FACTOR = 1 << FAN_SHIFT;
 
-        for (int i = 1; i < MAX_DEPTH; i++)
-        {
-            // each tree could have (FAN_FACTOR + 1) children, each child has TREE_SIZE[i - 1] values
+        // For current FAN_FACTOR, calculate the maximum height of the tree we could build
+        int maxHeight = 1;
+        for (long maxSize = 0; maxSize < MAX_TREE_SIZE; maxHeight++)
+            // each tree node could have (FAN_FACTOR + 1) children,
             // plus current node could have FAN_FACTOR number of values
+            maxSize = maxSize * (FAN_FACTOR + 1) + FAN_FACTOR;
+
+        TREE_SIZE = new int[maxHeight];
+
+        TREE_SIZE[0] = 0;
+        for (int i = 1; i < maxHeight - 1; i++)
             TREE_SIZE[i] = TREE_SIZE[i - 1] * (FAN_FACTOR + 1) + FAN_FACTOR;
-            if (TREE_SIZE[i] <= 0) // Overflow
-            {
-                TREE_SIZE[i] = Integer.MAX_VALUE;
-                break;
-            }
-        }
+
+        TREE_SIZE[maxHeight - 1] = MAX_TREE_SIZE;
     }
 
 
@@ -183,12 +187,21 @@ public class BTree
             left--;
         }
 
-        // Split the remaining values to the last 2 nodes
-        values[childPos + childrenNum - 2] = (V) buildInternal(it, left / 2, level - 1, updateF);
-        values[childrenNum - 2] = updateF.apply(it.next());
-        values[childPos + childrenNum - 1] = (V) buildInternal(it, (left - 1) / 2, level - 1, updateF);
+        // split the remaining values to the last 2 nodes. To make sure it generates the same BTree as NodeBuilder,
+        // the second last node should have more than half of the remaining values and it's child node (grandChild)
+        // should be full BTree. To caculate the second last child node size:
+        //   grandChildNum = childValNum + 1
+        //   grandChildNum * grandChildSize + childValNum > left / 2
+        // then we get: childValNum = (left / 2) / (grancChildSize + 1)
+        int grandChildSize = TREE_SIZE[level - 2];
+        int childValNum = (left / 2) / (grandChildSize + 1);
+        int secondLastChildSize = grandChildSize * (childValNum + 1) + childValNum;
 
-        indexOffsets[childrenNum - 2] = size - ((left + 1) / 2);
+        values[childPos + childrenNum - 2] = (V) buildInternal(it, secondLastChildSize, level - 1, updateF);
+        values[childrenNum - 2] = updateF.apply(it.next());
+        values[childPos + childrenNum - 1] = (V) buildInternal(it, left - secondLastChildSize - 1, level - 1, updateF);
+
+        indexOffsets[childrenNum - 2] = size - left + secondLastChildSize;
         indexOffsets[childrenNum - 1] = size;
 
         values[childPos + childrenNum] = (V) indexOffsets;

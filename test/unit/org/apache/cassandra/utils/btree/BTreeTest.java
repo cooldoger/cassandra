@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.cassandra.utils;
+package org.apache.cassandra.utils.btree;
 
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
@@ -25,10 +25,12 @@ import com.google.common.collect.Lists;
 import org.junit.Test;
 
 import org.junit.Assert;
-import org.apache.cassandra.utils.btree.BTree;
-import org.apache.cassandra.utils.btree.UpdateFunction;
 
+import static org.apache.cassandra.utils.btree.BTree.EMPTY_LEAF;
+import static org.apache.cassandra.utils.btree.BTree.FAN_SHIFT;
+import static org.apache.cassandra.utils.btree.BTree.POSITIVE_INFINITY;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 
 public class BTreeTest
 {
@@ -499,7 +501,7 @@ public class BTreeTest
         {
             Arrays.fill(numberOfCalls, 0);
         }
-    };
+    }
 
     @Test
     public void testTransformAndFilter()
@@ -519,5 +521,75 @@ public class BTreeTest
         // remove all values
         Object[] b4 = BTree.transformAndFilter(b1, (x) -> null);
         assertEquals(0, BTree.size(b4));
+    }
+
+    private <C, K extends C, V extends C> Object[] buildBTreeLegacy(Iterable<K> source, UpdateFunction<K, V> updateF, int size)
+    {
+        assert updateF != null;
+        NodeBuilder current = new NodeBuilder();
+
+        while ((size >>= FAN_SHIFT) > 0)
+            current = current.ensureChild();
+
+        current.reset(EMPTY_LEAF, POSITIVE_INFINITY, updateF, null);
+        for (K key : source)
+            current.addNewKey(key);
+
+        current = current.ascendToRoot();
+
+        Object[] r = current.toNode();
+        current.clear();
+        return r;
+    }
+
+    // Compare 2 BTrees to make sure they're exactly the same
+    private boolean isBTreeEqual(Object[] b1, Object[] b2)
+    {
+        if (BTree.size(b1) != BTree.size(b2)) return false;
+
+        // check values on this node
+        int valCount = BTree.isLeaf(b1) ? BTree.size(b1) : BTree.getChildCount(b1) - 1;
+        for (int i = 0; i < valCount; i++)
+        {
+            if (b1[i] != b2[i]) return false;
+        }
+
+        if (BTree.isLeaf(b1)) return true;
+
+        // Check children numbers and offsets
+        int childStartIdx = BTree.getChildStart(b1);
+        int childEndIdx = BTree.getChildEnd(b1);
+        int childCount = BTree.getChildCount(b1);
+
+        if (BTree.getChildStart(b2) != childStartIdx ||
+            BTree.getChildEnd(b2) != childEndIdx) return false;
+
+        int[] offset1 = (int[]) b1[childEndIdx];
+        int[] offset2 = (int[]) b2[childEndIdx];
+        for (int i = 0; i < childCount; i++)
+        {
+            if (offset1[i] != offset2[i]) return false;
+        }
+
+        // compare children recursively
+        for (int i = childStartIdx; i < childEndIdx; i++)
+        {
+            if (!isBTreeEqual((Object[])b1[i], (Object[])b2[i])) return false;
+        }
+        return true;
+    }
+
+    @Test
+    public void testBTreeBuilder()
+    {
+        int maxCount = 10000;
+        List<Integer> r = seq(maxCount);
+        for (int count = 1; count < maxCount; count++)
+        {
+            Object[] b1 = buildBTreeLegacy(r, UpdateFunction.noOp(), count);
+
+            Object[] b2 = BTree.build(r, UpdateFunction.noOp());
+            assertTrue(isBTreeEqual(b1, b2));
+        }
     }
 }
