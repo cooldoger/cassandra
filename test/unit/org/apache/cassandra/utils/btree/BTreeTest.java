@@ -27,6 +27,7 @@ import org.junit.Test;
 import org.junit.Assert;
 
 import static org.apache.cassandra.utils.btree.BTree.EMPTY_LEAF;
+import static org.apache.cassandra.utils.btree.BTree.FAN_FACTOR;
 import static org.apache.cassandra.utils.btree.BTree.FAN_SHIFT;
 import static org.apache.cassandra.utils.btree.BTree.POSITIVE_INFINITY;
 import static org.junit.Assert.*;
@@ -542,54 +543,59 @@ public class BTreeTest
         return r;
     }
 
-    // Compare 2 BTrees to make sure they're exactly the same
-    private boolean isBTreeEqual(Object[] b1, Object[] b2)
+    // Basic BTree validation to check the values and sizeOffsets. Return tree size.
+    private int validateBTree(Object[] tree, int[] startingPos)
     {
-        if (BTree.size(b1) != BTree.size(b2)) return false;
-
-        // check values on this node
-        int valCount = BTree.isLeaf(b1) ? BTree.size(b1) : BTree.getChildCount(b1) - 1;
-        for (int i = 0; i < valCount; i++)
+        if (BTree.isLeaf(tree))
         {
-            if (b1[i] != b2[i]) return false;
+            for (int i = 0; i < BTree.size(tree); i++)
+            {
+                assertEquals((int)tree[i], startingPos[0]);
+                startingPos[0]++;
+            }
+            return BTree.size(tree);
         }
 
-        if (BTree.isLeaf(b1)) return true;
+        int childNum = BTree.getChildCount(tree);
+        assertTrue(childNum >= FAN_FACTOR / 2);
+        assertTrue(childNum <= FAN_FACTOR + 1);
 
-        // Check children numbers and offsets
-        int childStartIdx = BTree.getChildStart(b1);
-        int childEndIdx = BTree.getChildEnd(b1);
-        int childCount = BTree.getChildCount(b1);
-
-        if (BTree.getChildStart(b2) != childStartIdx ||
-            BTree.getChildEnd(b2) != childEndIdx) return false;
-
-        int[] offset1 = (int[]) b1[childEndIdx];
-        int[] offset2 = (int[]) b2[childEndIdx];
-        for (int i = 0; i < childCount; i++)
+        int childStart = BTree.getChildStart(tree);
+        int[] sizeOffsets = BTree.getSizeMap(tree);
+        int pos = 0;
+        for (int i = 0; i < childNum; i++)
         {
-            if (offset1[i] != offset2[i]) return false;
-        }
+            int childSize = validateBTree((Object[])tree[i + childStart], startingPos);
+            pos += childSize;
+            assertEquals(sizeOffsets[i], pos);
+            if (i != childNum - 1)
+            {
+                assertEquals((int)tree[i], startingPos[0]);
+                pos++;
+                startingPos[0]++;
+            }
 
-        // compare children recursively
-        for (int i = childStartIdx; i < childEndIdx; i++)
-        {
-            if (!isBTreeEqual((Object[])b1[i], (Object[])b2[i])) return false;
         }
-        return true;
+        return BTree.size(tree);
     }
 
     @Test
-    public void testBTreeBuilder()
+    public void testBuildTree()
     {
-        int maxCount = 10000;
-        List<Integer> r = seq(maxCount);
-        for (int count = 1; count < maxCount; count++)
-        {
-            Object[] b1 = buildBTreeLegacy(r, UpdateFunction.noOp(), count);
+        int maxCount = 1000;
 
-            Object[] b2 = BTree.build(r, UpdateFunction.noOp());
-            assertTrue(isBTreeEqual(b1, b2));
+        for (int count = 0; count < maxCount; count++)
+        {
+            List<Integer> r = seq(count);
+            Object[] b1 = BTree.build(r, UpdateFunction.noOp());
+            Object[] b2 = buildBTreeLegacy(r, UpdateFunction.noOp(), count);
+            assertTrue(BTree.equals(b1, b2));
+
+            int[] startingPos = new int[1];
+            startingPos[0] = 0;
+            assertEquals(count, validateBTree(b1, startingPos));
+            startingPos[0] = 0;
+            assertEquals(count, validateBTree(b2, startingPos));
         }
     }
 }

@@ -79,7 +79,7 @@ public class BTree
         FAN_FACTOR = 1 << FAN_SHIFT;
 
         // For current FAN_FACTOR, calculate the maximum height of the tree we could build
-        int maxHeight = 1;
+        int maxHeight = 0;
         for (long maxSize = 0; maxSize < MAX_TREE_SIZE; maxHeight++)
             // each tree node could have (FAN_FACTOR + 1) children,
             // plus current node could have FAN_FACTOR number of values
@@ -87,7 +87,7 @@ public class BTree
 
         TREE_SIZE = new int[maxHeight];
 
-        TREE_SIZE[0] = 0;
+        TREE_SIZE[0] = FAN_FACTOR;
         for (int i = 1; i < maxHeight - 1; i++)
             TREE_SIZE[i] = TREE_SIZE[i - 1] * (FAN_FACTOR + 1) + FAN_FACTOR;
 
@@ -158,53 +158,49 @@ public class BTree
     private static <C, K extends C, V extends C> Object[] buildInternal(Iterator<K> it, int size, int level, UpdateFunction<K, V> updateF)
     {
         assert size > 0;
-        assert level > 0;
-        if (level == 1)
+        assert level >= 0;
+        if (level == 0)
             return buildLeaf(it, size, updateF);
 
-        // build branch node
-        int childSize = TREE_SIZE[level - 1];
-        int childrenNum = size / (childSize + 1) + 1;
+        // calcuate child num: (size - (childNum - 1)) / maxChildSize <= childNum
+        int childNum = size / (TREE_SIZE[level - 1] + 1) + 1;
 
-        V[] values = (V[]) new Object[childrenNum * 2];
+        // Try split the values evenly to all child nodes: ceil((size - (childNum - 1)) / childNum)
+        int childSize = size / childNum;
+
+        V[] values = (V[]) new Object[childNum * 2];
         if (updateF != UpdateFunction.noOp())
             updateF.allocated(ObjectSizes.sizeOfArray(values));
 
-        int[] indexOffsets = new int[childrenNum];
-        int left = size;
-        int childPos = childrenNum - 1;
+        int[] indexOffsets = new int[childNum];
+        int childPos = childNum - 1;
 
-        // Build children nodes with full BTree size except the last 2 nodes
-        for (int i = 0; i < childrenNum - 2; i++)
+        // Build child nodes with calcuated size except the last 2 nodes (otherwise the last node may not have value).
+        int pos = 0;
+        for (int i = 0; i < childNum - 2; i++)
         {
             // Build the tree with inorder traversal
             values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
-            left -= childSize;
-            indexOffsets[i] = size - left;
+            pos += childSize;
+            indexOffsets[i] = pos;
 
             K k = it.next();
             values[i] = updateF.apply(k);
-            left--;
+            pos++;
         }
 
-        // split the remaining values to the last 2 nodes. To make sure it generates the same BTree as NodeBuilder,
-        // the second last node should have more than half of the remaining values and it's child node (grandChild)
-        // should be full BTree. To caculate the second last child node size:
-        //   grandChildNum = childValNum + 1
-        //   grandChildNum * grandChildSize + childValNum > left / 2
-        // then we get: childValNum = (left / 2) / (grancChildSize + 1)
-        int grandChildSize = TREE_SIZE[level - 2];
-        int childValNum = (left / 2) / (grandChildSize + 1);
-        int secondLastChildSize = grandChildSize * (childValNum + 1) + childValNum;
+        // split the remaining values to the last 2 nodes
+        int remaining = size - pos;
+        values[childPos + childNum - 2] = (V) buildInternal(it, remaining / 2, level - 1, updateF);
+        pos += remaining / 2;
+        indexOffsets[childNum - 2] = pos;
+        pos++;
 
-        values[childPos + childrenNum - 2] = (V) buildInternal(it, secondLastChildSize, level - 1, updateF);
-        values[childrenNum - 2] = updateF.apply(it.next());
-        values[childPos + childrenNum - 1] = (V) buildInternal(it, left - secondLastChildSize - 1, level - 1, updateF);
+        values[childNum - 2] = updateF.apply(it.next());
+        values[childPos + childNum - 1] = (V) buildInternal(it, size - pos, level - 1, updateF);
+        indexOffsets[childNum - 1] = size;
 
-        indexOffsets[childrenNum - 2] = size - left + secondLastChildSize;
-        indexOffsets[childrenNum - 1] = size;
-
-        values[childPos + childrenNum] = (V) indexOffsets;
+        values[childPos + childNum] = (V) indexOffsets;
 
         return values;
     }
@@ -216,7 +212,7 @@ public class BTree
             return EMPTY_LEAF;
 
         // find out the height of the tree
-        int level = 1;
+        int level = 0;
         while (size > TREE_SIZE[level])
             level++;
         Iterator<K> it = source.iterator();
