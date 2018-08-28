@@ -165,8 +165,9 @@ public class BTree
         // calcuate child num: (size - (childNum - 1)) / maxChildSize <= childNum
         int childNum = size / (TREE_SIZE[level - 1] + 1) + 1;
 
-        // Try split the values evenly to all child nodes: ceil((size - (childNum - 1)) / childNum)
-        int childSize = size / childNum;
+        // Try split the values evenly to all child nodes, the last node may be larger than the previous nodes:
+        //   ceil((size - (childNum - 1) - 1) / childNum)
+        int childSize = (size - 1) / childNum;
 
         V[] values = (V[]) new Object[childNum * 2];
         if (updateF != UpdateFunction.noOp())
@@ -175,29 +176,20 @@ public class BTree
         int[] indexOffsets = new int[childNum];
         int childPos = childNum - 1;
 
-        // Build child nodes with calcuated size except the last 2 nodes (otherwise the last node may not have value).
-        int pos = 0;
-        for (int i = 0; i < childNum - 2; i++)
+        int index = 0;
+        for (int i = 0; i < childNum - 1; i++)
         {
             // Build the tree with inorder traversal
             values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
-            pos += childSize;
-            indexOffsets[i] = pos;
+            index += childSize;
+            indexOffsets[i] = index;
 
             K k = it.next();
             values[i] = updateF.apply(k);
-            pos++;
+            index++;
         }
 
-        // split the remaining values to the last 2 nodes
-        int remaining = size - pos;
-        values[childPos + childNum - 2] = (V) buildInternal(it, remaining / 2, level - 1, updateF);
-        pos += remaining / 2;
-        indexOffsets[childNum - 2] = pos;
-        pos++;
-
-        values[childNum - 2] = updateF.apply(it.next());
-        values[childPos + childNum - 1] = (V) buildInternal(it, size - pos, level - 1, updateF);
+        values[childPos + childNum - 1] = (V) buildInternal(it, size - index, level - 1, updateF);
         indexOffsets[childNum - 1] = size;
 
         values[childPos + childNum] = (V) indexOffsets;
