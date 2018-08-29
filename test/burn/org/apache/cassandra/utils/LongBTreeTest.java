@@ -33,7 +33,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Consumer;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -85,8 +84,12 @@ public class LongBTreeTest
     public void testSearchIterator() throws InterruptedException
     {
         final int perTreeSelections = 100;
-        testRandomSelection(perThreadTrees, perTreeSelections,
-        (test) -> {
+        testRandomSelection(perThreadTrees, perTreeSelections, testSearchIteratorFactory());
+    }
+
+    private BTreeTestFactory testSearchIteratorFactory()
+    {
+        return (test) -> {
             IndexedSearchIterator<Integer, Integer> iter1 = test.testAsSet.iterator();
             IndexedSearchIterator<Integer, Integer> iter2 = test.testAsList.iterator();
             return (key) ->
@@ -115,45 +118,52 @@ public class LongBTreeTest
                 else
                     Assert.assertNull(iter2.next(key));
             };
-        });
+        };
     }
 
     @Test
     public void testInequalityLookups() throws InterruptedException
     {
         final int perTreeSelections = 2;
-        testRandomSelectionOfSet(perThreadTrees, perTreeSelections,
-                                 (test, canonical) -> {
-                                     if (!canonical.isEmpty() || !test.isEmpty())
-                                     {
-                                         Assert.assertEquals(canonical.isEmpty(), test.isEmpty());
-                                         Assert.assertEquals(canonical.first(), test.first());
-                                         Assert.assertEquals(canonical.last(), test.last());
-                                     }
-                                     return (key) ->
-                                     {
-                                         Assert.assertEquals(test.ceiling(key), canonical.ceiling(key));
-                                         Assert.assertEquals(test.higher(key), canonical.higher(key));
-                                         Assert.assertEquals(test.floor(key), canonical.floor(key));
-                                         Assert.assertEquals(test.lower(key), canonical.lower(key));
-                                     };
-                                 });
+        testRandomSelectionOfSet(perThreadTrees, perTreeSelections, testInequalityLookupsFactory());
+    }
+
+    private BTreeSetTestFactory testInequalityLookupsFactory()
+    {
+        return (test, canonical) -> {
+            if (!canonical.isEmpty() || !test.isEmpty())
+            {
+                Assert.assertEquals(canonical.isEmpty(), test.isEmpty());
+                Assert.assertEquals(canonical.first(), test.first());
+                Assert.assertEquals(canonical.last(), test.last());
+            }
+            return (key) ->
+            {
+                Assert.assertEquals(test.ceiling(key), canonical.ceiling(key));
+                Assert.assertEquals(test.higher(key), canonical.higher(key));
+                Assert.assertEquals(test.floor(key), canonical.floor(key));
+                Assert.assertEquals(test.lower(key), canonical.lower(key));
+            };
+        };
     }
 
     @Test
     public void testListIndexes() throws InterruptedException
     {
-        testRandomSelectionOfList(perThreadTrees, 4,
-                                  (test, canonical, cmp) ->
-                                  (key) ->
-                                  {
-                                      int javaIndex = Collections.binarySearch(canonical, key, cmp);
-                                      int btreeIndex = test.indexOf(key);
-                                      Assert.assertEquals(javaIndex, btreeIndex);
-                                      if (javaIndex >= 0)
-                                          Assert.assertEquals(canonical.get(javaIndex), test.get(btreeIndex));
-                                  }
-        );
+        testRandomSelectionOfList(perThreadTrees, 4, testListIndexesFactory());
+    }
+
+    private BTreeListTestFactory testListIndexesFactory()
+    {
+        return (test, canonical, cmp) ->
+                (key) ->
+                {
+                    int javaIndex = Collections.binarySearch(canonical, key, cmp);
+                    int btreeIndex = test.indexOf(key);
+                    Assert.assertEquals(javaIndex, btreeIndex);
+                    if (javaIndex >= 0)
+                        Assert.assertEquals(canonical.get(javaIndex), test.get(btreeIndex));
+                };
     }
 
     @Test
@@ -269,13 +279,23 @@ public class LongBTreeTest
         void testOne(Integer value);
     }
 
+    private void run(BTreeTestFactory testRun, RandomSelection selection)
+    {
+        TestEachKey testEachKey = testRun.get(selection);
+        for (Integer key : selection.testKeys)
+            testEachKey.testOne(key);
+    }
+
+    private void run(BTreeSetTestFactory testRun, RandomSelection selection)
+    {
+        TestEachKey testEachKey = testRun.get(selection.testAsSet, selection.canonicalSet);
+        for (Integer key : selection.testKeys)
+            testEachKey.testOne(key);
+    }
+
     private void testRandomSelection(int perThreadTrees, int perTreeSelections, BTreeTestFactory testRun) throws InterruptedException
     {
-        testRandomSelection(perThreadTrees, perTreeSelections, (selection) -> {
-            TestEachKey testEachKey = testRun.get(selection);
-            for (Integer key : selection.testKeys)
-                testEachKey.testOne(key);
-        });
+        testRandomSelection(perThreadTrees, perTreeSelections, (RandomSelection selection) -> run(testRun, selection));
     }
 
     private void testRandomSelection(int perThreadTrees, int perTreeSelections, Consumer<RandomSelection> testRun) throws InterruptedException
@@ -629,6 +649,25 @@ public class LongBTreeTest
     }
 
     /************************** TEST MUTATION ********************************************/
+
+    @Test
+    public void testBuildNewTree()
+    {
+        int max = 10000;
+        final List<Integer> list = new ArrayList<>(max);
+        final NavigableSet<Integer> set = new TreeSet<>();
+        BTreeSetTestFactory test = testInequalityLookupsFactory();
+        for (int i = 0 ; i < max ; ++i)
+        {
+            list.add(i);
+            set.add(i);
+            Object[] tree = BTree.build(list, UpdateFunction.noOp());
+            Assert.assertTrue(BTree.isWellFormed(tree, Comparator.naturalOrder()));
+            BTreeSet<Integer> btree = new BTreeSet<>(tree, Comparator.naturalOrder());
+            RandomSelection selection = new RandomSelection(list, set, btree, list, btree, Comparator.naturalOrder());
+            run(test, selection);
+        }
+    }
 
     @Test
     public void testOversizedMiddleInsert()
