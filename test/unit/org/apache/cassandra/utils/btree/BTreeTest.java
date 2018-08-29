@@ -544,16 +544,22 @@ public class BTreeTest
     }
 
     // Basic BTree validation to check the values and sizeOffsets. Return tree size.
-    private int validateBTree(Object[] tree, int[] startingPos)
+    private int validateBTree(Object[] tree, int[] startingPos, boolean isRoot)
     {
         if (BTree.isLeaf(tree))
         {
-            for (int i = 0; i < BTree.size(tree); i++)
+            int size = BTree.size(tree);
+            if (!isRoot)
+            {
+                assertTrue(size >= FAN_FACTOR / 2);
+                assertTrue(size <= FAN_FACTOR);
+            }
+            for (int i = 0; i < size; i++)
             {
                 assertEquals((int)tree[i], startingPos[0]);
                 startingPos[0]++;
             }
-            return BTree.size(tree);
+            return size;
         }
 
         int childNum = BTree.getChildCount(tree);
@@ -565,7 +571,8 @@ public class BTreeTest
         int pos = 0;
         for (int i = 0; i < childNum; i++)
         {
-            int childSize = validateBTree((Object[])tree[i + childStart], startingPos);
+            int childSize = validateBTree((Object[])tree[i + childStart], startingPos, false);
+
             pos += childSize;
             assertEquals(sizeOffsets[i], pos);
             if (i != childNum - 1)
@@ -593,9 +600,9 @@ public class BTreeTest
 
             int[] startingPos = new int[1];
             startingPos[0] = 0;
-            assertEquals(count, validateBTree(b1, startingPos));
+            assertEquals(count, validateBTree(b1, startingPos, true));
             startingPos[0] = 0;
-            assertEquals(count, validateBTree(b2, startingPos));
+            assertEquals(count, validateBTree(b2, startingPos, true));
         }
     }
 }

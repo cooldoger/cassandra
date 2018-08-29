@@ -165,10 +165,6 @@ public class BTree
         // calcuate child num: (size - (childNum - 1)) / maxChildSize <= childNum
         int childNum = size / (TREE_SIZE[level - 1] + 1) + 1;
 
-        // Try split the values evenly to all child nodes, the last node may be larger than the previous nodes:
-        //   ceil((size - (childNum - 1) - 1) / childNum)
-        int childSize = (size - 1) / childNum;
-
         V[] values = (V[]) new Object[childNum * 2];
         if (updateF != UpdateFunction.noOp())
             updateF.allocated(ObjectSizes.sizeOfArray(values));
@@ -179,6 +175,7 @@ public class BTree
         int index = 0;
         for (int i = 0; i < childNum - 1; i++)
         {
+            int childSize = (size - index) / (childNum - i);
             // Build the tree with inorder traversal
             values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
             index += childSize;
