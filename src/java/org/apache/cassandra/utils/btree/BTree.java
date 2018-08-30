@@ -171,11 +171,11 @@ public class BTree
 
         int[] indexOffsets = new int[childNum];
         int childPos = childNum - 1;
+        int childSize = size / childNum;
 
         int index = 0;
-        for (int i = 0; i < childNum - 1; i++)
+        for (int i = 0; i < childNum - 2; i++)
         {
-            int childSize = (size - index) / (childNum - i);
             // Build the tree with inorder traversal
             values[childPos + i] = (V) buildInternal(it, childSize, level - 1, updateF);
             index += childSize;
@@ -186,7 +186,12 @@ public class BTree
             index++;
         }
 
-        values[childPos + childNum - 1] = (V) buildInternal(it, size - index, level - 1, updateF);
+        int firstSize = (size - index) / 2;
+        values[childPos + childNum - 2] = (V) buildInternal(it, firstSize, level - 1, updateF);
+        index += firstSize;
+        indexOffsets[childNum - 2] = index;
+        values[childNum - 2] = updateF.apply(it.next());
+        values[childPos + childNum - 1] = (V) buildInternal(it, size - index - 1, level - 1, updateF);
         indexOffsets[childNum - 1] = size;
 
         values[childPos + childNum] = (V) indexOffsets;
