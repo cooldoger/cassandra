@@ -1230,15 +1230,13 @@ public class TokenMetadata
         return ImmutableList.copyOf(Iterables.concat(naturalEndpoints, pendingEndpointsFor(token, keyspaceName)));
     }
 
-    /** @return an endpoint to token multimap representation of tokenToEndpointMap (a copy) */
-    public Multimap<InetAddress, Token> getEndpointToTokenMapForReading()
+    /** @return a set of endpoints for tokenToEndpointMap (a copy) */
+    public Set<InetAddress> getTokenEndpointsForReading()
     {
         lock.readLock().lock();
         try
         {
-            Multimap<InetAddress, Token> cloned = HashMultimap.create();
-            for (Map.Entry<Token, InetAddress> entry : tokenToEndpointMap.entrySet())
-                cloned.put(entry.getValue(), entry.getKey());
+            Set<InetAddress> cloned = new HashSet<>(tokenToEndpointMap.valueSet());
             return cloned;
         }
         finally
