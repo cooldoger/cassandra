@@ -1279,15 +1279,13 @@ public class TokenMetadata
         return ReplicaLayout.forTokenWrite(natural, pending).all();
     }
 
-    /** @return an endpoint to token multimap representation of tokenToEndpointMap (a copy) */
-    public Multimap<InetAddressAndPort, Token> getEndpointToTokenMapForReading()
+    /** @return a set of endpoints for tokenToEndpointMap (a copy) */
+    public Set<InetAddressAndPort> getTokenEndpointsForReading()
     {
         lock.readLock().lock();
         try
         {
-            Multimap<InetAddressAndPort, Token> cloned = HashMultimap.create();
-            for (Map.Entry<Token, InetAddressAndPort> entry : tokenToEndpointMap.entrySet())
-                cloned.put(entry.getValue(), entry.getKey());
+            Set<InetAddressAndPort> cloned = new HashSet<>(tokenToEndpointMap.valueSet());
             return cloned;
         }
         finally
