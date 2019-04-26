@@ -172,6 +172,12 @@ public class TokenMetadata
         updateNormalTokens(endpointTokens);
     }
 
+    private boolean containsTheSameToken(InetAddressAndPort ep, Collection<Token> tokens)
+    {
+        Collection<Token> currentTokens = tokenToEndpointMap.inverse().get(ep);
+        return currentTokens.containsAll(tokens) && tokens.containsAll(currentTokens);
+    }
+
     /**
      * Update token map with a set of token/endpoint pairs in normal state.
      *
@@ -186,7 +192,7 @@ public class TokenMetadata
         lock.writeLock().lock();
         try
         {
-            boolean shouldSortTokens = false;
+            boolean isTokenChanged = false;
             Topology.Builder topologyBuilder = topology.unbuild();
             for (InetAddressAndPort endpoint : endpointTokens.keySet())
             {
@@ -195,12 +201,14 @@ public class TokenMetadata
                 assert tokens != null && !tokens.isEmpty();
 
                 bootstrapTokens.removeValue(endpoint);
-                tokenToEndpointMap.removeValue(endpoint);
                 topologyBuilder.addEndpoint(endpoint);
                 leavingEndpoints.remove(endpoint);
                 replacementToOriginal.remove(endpoint);
                 removeFromMoving(endpoint); // also removing this endpoint from moving
 
+                if (containsTheSameToken(endpoint, tokens)) continue;
+
+                tokenToEndpointMap.removeValue(endpoint);
                 for (Token token : tokens)
                 {
                     InetAddressAndPort prev = tokenToEndpointMap.put(token, endpoint);
@@ -208,14 +216,17 @@ public class TokenMetadata
                     {
                         if (prev != null)
                             logger.warn("Token {} changing ownership from {} to {}", token, prev, endpoint);
-                        shouldSortTokens = true;
+                        isTokenChanged = true;
                     }
                 }
             }
             topology = topologyBuilder.build();
 
-            if (shouldSortTokens)
+            if (isTokenChanged)
+            {
                 sortedTokens = sortTokens();
+                invalidateCachedRings();
+            }
         }
         finally
         {
@@ -529,16 +540,12 @@ public class TokenMetadata
         lock.writeLock().lock();
         try
         {
-            for (Pair<Token, InetAddressAndPort> pair : movingEndpoints)
-            {
-                if (pair.right.equals(endpoint))
-                {
-                    movingEndpoints.remove(pair);
-                    break;
-                }
-            }
+            boolean isChanged = movingEndpoints.removeIf(pair -> pair.right.equals(endpoint));
 
-            invalidateCachedRings();
+            if (isChanged)
+            {
+                invalidateCachedRings();
+            }
         }
         finally
         {
